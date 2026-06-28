@@ -9,10 +9,10 @@ import { ANIME_NOTE_TYPES, NOTE_VISIBILITIES, SOURCE_TYPES, SPOILER_LEVELS } fro
 import type { Anime, AnimeNote, AnimeNoteType, NoteVisibility, SourceLink, SourceType, SpoilerLevel, UserAnimeWithAnime } from "../../shared/types";
 
 const sourceTypeLabel: Record<SourceType, string> = {
-  official: "官方",
-  community_link: "社群連結",
-  search_link: "搜尋連結",
-  manual: "手動",
+  official: "官方平台",
+  community_link: "字幕組／社群",
+  search_link: "搜尋頁",
+  manual: "其他",
 };
 
 const FORMAT_LABEL: Record<string, string> = {
