@@ -187,6 +187,10 @@ function AnimeEditRequestSection({ anime }: { anime: Anime }) {
       coverImageUrl: form.coverImageUrl.trim() || null,
       description: form.description.trim() || null,
     };
+    if (Object.values(payload).every((v) => v === null)) {
+      setError("請至少填寫一個欄位。");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {

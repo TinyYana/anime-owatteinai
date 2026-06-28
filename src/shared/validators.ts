@@ -68,7 +68,7 @@ export const animeEditPayloadSchema = z
     coverImageUrl: z.string().trim().url().max(2000).optional().nullable(),
     episodesTotal: z.number().int().min(0).max(9999).optional().nullable(),
   })
-  .refine((v) => Object.keys(v).length > 0, { message: "No fields to update" });
+  .refine((v) => Object.values(v).some((x) => x !== null && x !== undefined), { message: "No fields to update" });
 
 export const createAnimeEditRequestSchema = z.object({
   payload: animeEditPayloadSchema,
