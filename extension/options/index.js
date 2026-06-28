@@ -5,7 +5,7 @@ const result = document.getElementById("result");
 
 // Load saved value
 chrome.storage.sync.get({
-  apiBase: "http://localhost:8787",
+  apiBase: "https://aon.tinyyana.com",
   defaultPriority: "normal",
   widgetSize: "normal",
 }, ({ apiBase, defaultPriority, widgetSize: savedWidgetSize }) => {
