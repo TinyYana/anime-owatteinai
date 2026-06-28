@@ -1,7 +1,8 @@
 import { Hono } from "hono";
-import { eq, desc, gte, and, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { verifyDiscordSignature } from "../lib/discord";
-import { watchSessions, userAnime, anime, users } from "../../db/schema";
+import { buildPersonalTodayBrief } from "../lib/watchBrief";
+import { userAnime, anime, users } from "../../db/schema";
 import type { AppEnv } from "../env";
 
 // Discord interaction type constants
@@ -51,24 +52,8 @@ discordRoutes.post("/interactions", async (c) => {
 
   // /anime today — public community activity feed
   if (sub?.name === "today") {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const rows = await db
-      .select({
-        episodeNumber: watchSessions.episodeNumber,
-        userName: users.discordGlobalName,
-        animeTitle: anime.titleZh,
-        animeTitleFallback: anime.title,
-      })
-      .from(watchSessions)
-      .innerJoin(users, eq(users.id, watchSessions.userId))
-      .innerJoin(anime, eq(anime.id, watchSessions.animeId))
-      .where(and(gte(watchSessions.watchedAt, since), eq(watchSessions.completed, true)))
-      .orderBy(desc(watchSessions.watchedAt))
-      .limit(10);
-
-    if (rows.length === 0) return c.json(reply("📭 今天社群還沒有追番紀錄。", true));
-    const lines = rows.map((r) => `· **${r.animeTitle ?? r.animeTitleFallback}** EP${r.episodeNumber} — ${r.userName ?? "？"}`);
-    return c.json(reply(`📺 **今日社群追番動態**\n${lines.join("\n")}`));
+    if (!discordId) return c.json(reply("無法識別你的 Discord 帳號。", true));
+    return c.json(reply(await buildPersonalTodayBrief(db, discordId), true));
   }
 
   // /anime watching — ephemeral list of user's current watches

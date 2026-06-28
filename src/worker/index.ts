@@ -7,8 +7,14 @@ import { animeRoutes } from "./routes/anime";
 import { myAnimeRoutes, watchSessionRoutes } from "./routes/my";
 import { sourceLinkRoutes } from "./routes/sourceLinks";
 import { adminPanelRoutes } from "./routes/adminPanel";
+import { activityRoutes } from "./routes/activity";
+import { notificationRoutes } from "./routes/notifications";
+import { announcementRoutes } from "./routes/announcements";
+import { animeNoteRoutes } from "./routes/animeNotes";
+import { communityRoutes } from "./routes/community";
 import { runGuildAudit } from "./lib/guildAudit";
 import { runDailySummary } from "./lib/dailySummary";
+import { runPersonalDailyNotifications } from "./lib/personalNotifications";
 import { discordRoutes } from "./routes/discord";
 import type { AppEnv } from "./env";
 
@@ -27,6 +33,11 @@ api.route("/admin/panel", adminPanelRoutes);
 api.route("/anime", animeRoutes);
 api.route("/my/anime", myAnimeRoutes);
 api.route("/my/watch-sessions", watchSessionRoutes);
+api.route("/my/activity", activityRoutes);
+api.route("/my/notifications", notificationRoutes);
+api.route("/community", communityRoutes);
+api.route("/", announcementRoutes); // /announcements/active, /admin/announcements
+api.route("/", animeNoteRoutes); // /anime/:id/notes, /anime-notes/:id
 api.route("/", sourceLinkRoutes); // /anime/:id/source-links, /source-links/:id
 api.route("/discord", discordRoutes);
 
@@ -56,6 +67,7 @@ export default {
     // ponytail: daily summary fires on the 9am cron only — guild audit runs every hour
     if (controller.cron === "0 9 * * *") {
       ctx.waitUntil(runDailySummary(env));
+      ctx.waitUntil(runPersonalDailyNotifications(env));
     }
   },
 };

@@ -43,6 +43,20 @@
       "when": 1782777600000,
       "tag": "0005_guild_check_test_users",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782779400000,
+      "tag": "0006_daily_dm_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782781200000,
+      "tag": "0007_social_foundation",
+      "breakpoints": true
     }
   ]
 }

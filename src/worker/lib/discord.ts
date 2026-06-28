@@ -38,46 +38,55 @@ export async function verifyDiscordSignature(
   }
 }
 
-/** POST a message to a Discord text channel. Fire-and-forget errors. */
-export async function sendChannelMessage(botToken: string, channelId: string, content: string): Promise<void> {
-  await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
-  }).catch((err) => console.error("Discord sendChannelMessage error:", err));
+/** POST a message to a Discord text channel. */
+export async function sendChannelMessage(botToken: string, channelId: string, content: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) console.error("Discord sendChannelMessage failed:", res.status, await res.text());
+    return res.ok;
+  } catch (err) {
+    console.error("Discord sendChannelMessage error:", err);
+    return false;
+  }
 }
 
 /**
  * Open a DM channel with a user, then send them a message.
  * Fails silently — DM failures shouldn't break the calling flow.
  */
-export async function sendDM(botToken: string, discordUserId: string, content: string): Promise<void> {
+export async function sendDM(botToken: string, discordUserId: string, content: string): Promise<boolean> {
   try {
     const channelRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
       method: "POST",
       headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ recipient_id: discordUserId }),
     });
-    if (!channelRes.ok) return;
+    if (!channelRes.ok) return false;
     const channel = (await channelRes.json()) as { id?: string };
-    if (!channel.id) return;
-    await sendChannelMessage(botToken, channel.id, content);
+    if (!channel.id) return false;
+    return sendChannelMessage(botToken, channel.id, content);
   } catch (err) {
     console.error("Discord sendDM error:", err);
+    return false;
   }
 }
 
-/**
- * Register (or replace) slash commands for this app globally.
- * Only needs to run once — call from admin panel.
- */
-export async function registerSlashCommands(clientId: string, botToken: string): Promise<{ ok: boolean; status: number }> {
+/** Register optional stateless slash commands. Personalized notifications do not depend on this. */
+export async function registerSlashCommands(
+  clientId: string,
+  botToken: string,
+  guildId?: string,
+): Promise<{ ok: boolean; status: number; scope: "guild" | "global"; body: string }> {
   const commands = [
     {
       name: "anime",
       description: "追番進行式指令",
       options: [
-        { name: "today", description: "查看今日社群追番動態", type: 1 },
+        { name: "today", description: "查看你的今日追番簡報", type: 1 },
         { name: "watching", description: "查看我正在追的作品（只有你看得到）", type: 1 },
         {
           name: "share",
@@ -90,10 +99,14 @@ export async function registerSlashCommands(clientId: string, botToken: string):
       ],
     },
   ];
-  const res = await fetch(`${DISCORD_API}/applications/${clientId}/commands`, {
+  const scope = guildId ? "guild" : "global";
+  const path = guildId
+    ? `${DISCORD_API}/applications/${clientId}/guilds/${guildId}/commands`
+    : `${DISCORD_API}/applications/${clientId}/commands`;
+  const res = await fetch(path, {
     method: "PUT",
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
     body: JSON.stringify(commands),
   });
-  return { ok: res.ok, status: res.status };
+  return { ok: res.ok, status: res.status, scope, body: await res.text() };
 }

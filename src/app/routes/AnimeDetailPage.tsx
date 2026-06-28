@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, coverUrl } from "../lib/api";
 import { hasPermission, useAuth } from "../lib/auth";
 import { markEpisodeWatched } from "../lib/watch";
 import { Panel, Button, Badge, Field, Input, Select, Textarea, ErrorText, SectionTitle, ProgressRail, Loading, SourceLinkButtons } from "../components/ui";
 import { useReveal } from "../lib/motion";
-import { SOURCE_TYPES } from "../../shared/types";
-import type { Anime, SourceLink, SourceType, UserAnimeWithAnime } from "../../shared/types";
+import { ANIME_NOTE_TYPES, NOTE_VISIBILITIES, SOURCE_TYPES, SPOILER_LEVELS } from "../../shared/types";
+import type { Anime, AnimeNote, AnimeNoteType, NoteVisibility, SourceLink, SourceType, SpoilerLevel, UserAnimeWithAnime } from "../../shared/types";
 
 const sourceTypeLabel: Record<SourceType, string> = {
   official: "官方",
@@ -20,6 +20,21 @@ const FORMAT_LABEL: Record<string, string> = {
 };
 const SEASON_LABEL: Record<string, string> = {
   SPRING: "春", SUMMER: "夏", FALL: "秋", WINTER: "冬",
+};
+const noteTypeLabel: Record<AnimeNoteType, string> = {
+  note: "短記",
+  recommendation: "推薦",
+  episode_comment: "單集感想",
+  question: "疑問",
+};
+const spoilerLabel: Record<SpoilerLevel, string> = {
+  none: "無防雷",
+  minor: "輕微防雷",
+  major: "重大防雷",
+};
+const noteVisibilityLabel: Record<NoteVisibility, string> = {
+  private: "只給自己",
+  community: "社群可見",
 };
 
 export function AnimeDetailPage() {
@@ -84,7 +99,7 @@ export function AnimeDetailPage() {
         <div className="flex gap-4 lg:block">
           {anime.coverImageUrl && (
             <img
-              src={anime.coverImageUrl}
+              src={coverUrl(anime.coverImageUrl)}
               alt=""
               className="elev h-28 w-20 shrink-0 rounded-lg object-cover lg:hidden"
             />
@@ -126,6 +141,10 @@ export function AnimeDetailPage() {
           </div>
 
           <div data-reveal>
+            <AnimeNotesSection animeId={id} isAdmin={isAdmin} />
+          </div>
+
+          <div data-reveal>
             <AnimeEditRequestSection anime={anime} />
           </div>
         </main>
@@ -133,7 +152,7 @@ export function AnimeDetailPage() {
         <aside data-reveal className="space-y-5 lg:sticky lg:top-24">
           {anime.coverImageUrl && (
             <img
-              src={anime.coverImageUrl}
+              src={coverUrl(anime.coverImageUrl)}
               alt=""
               className="elev hidden aspect-[2/3] w-full rounded-xl object-cover lg:block"
             />
@@ -516,6 +535,145 @@ function SourceLinksSection({
         </ul>
       )}
       <p className="mt-3 text-xs text-muted/60">只保存連結本身，不抓取、不嵌入、不下載任何影片內容。</p>
+    </section>
+  );
+}
+
+function AnimeNotesSection({ animeId, isAdmin }: { animeId: string; isAdmin: boolean }) {
+  const [mine, setMine] = useState<AnimeNote[]>([]);
+  const [community, setCommunity] = useState<AnimeNote[]>([]);
+  const [form, setForm] = useState({
+    episodeNumber: "",
+    type: "note" as AnimeNoteType,
+    spoilerLevel: "none" as SpoilerLevel,
+    visibility: "private" as NoteVisibility,
+    content: "",
+  });
+  const [busy, setBusy] = useState(false);
+
+  function load() {
+    api.get<{ mine: AnimeNote[]; community: AnimeNote[] }>(`/api/anime/${animeId}/notes`)
+      .then((data) => {
+        setMine(data.mine);
+        setCommunity(data.community);
+      })
+      .catch(() => {
+        setMine([]);
+        setCommunity([]);
+      });
+  }
+
+  useEffect(load, [animeId]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.post(`/api/anime/${animeId}/notes`, {
+        episodeNumber: form.episodeNumber ? Math.max(1, Math.floor(Number(form.episodeNumber))) : null,
+        type: form.type,
+        spoilerLevel: form.spoilerLevel,
+        visibility: form.visibility,
+        content: form.content.trim(),
+      });
+      setForm((f) => ({ ...f, episodeNumber: "", content: "" }));
+      load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(id: string) {
+    await api.del(`/api/anime-notes/${id}`);
+    load();
+  }
+
+  return (
+    <section>
+      <div className="mb-3">
+        <SectionTitle label="花瓣短評">作品短記</SectionTitle>
+        <p className="text-xs text-muted/70">短評必須綁定作品；community 只給成員看，不會變成公開論壇。</p>
+      </div>
+
+      <form onSubmit={submit} className="mb-5 space-y-3 border-y border-border/50 py-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[7rem_9rem_9rem_9rem]">
+          <Input
+            type="number"
+            min={1}
+            value={form.episodeNumber}
+            onChange={(e) => setForm((f) => ({ ...f, episodeNumber: e.target.value }))}
+            placeholder="集數"
+            aria-label="集數"
+          />
+          <Select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as AnimeNoteType }))}>
+            {ANIME_NOTE_TYPES.map((type) => <option key={type} value={type}>{noteTypeLabel[type]}</option>)}
+          </Select>
+          <Select value={form.spoilerLevel} onChange={(e) => setForm((f) => ({ ...f, spoilerLevel: e.target.value as SpoilerLevel }))}>
+            {SPOILER_LEVELS.map((level) => <option key={level} value={level}>{spoilerLabel[level]}</option>)}
+          </Select>
+          <Select value={form.visibility} onChange={(e) => setForm((f) => ({ ...f, visibility: e.target.value as NoteVisibility }))}>
+            {NOTE_VISIBILITIES.map((visibility) => <option key={visibility} value={visibility}>{noteVisibilityLabel[visibility]}</option>)}
+          </Select>
+        </div>
+        <Textarea
+          value={form.content}
+          onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+          placeholder="留一片花瓣短評"
+          maxLength={2000}
+          required
+        />
+        <Button type="submit" disabled={busy}>{busy ? "送出中…" : "新增短評"}</Button>
+      </form>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <NoteList title="我的短評" items={mine} onRemove={remove} canModerate={false} />
+        <NoteList title="社群短評" items={community} onRemove={remove} canModerate={isAdmin} />
+      </div>
+    </section>
+  );
+}
+
+function NoteList({
+  title,
+  items,
+  onRemove,
+  canModerate,
+}: {
+  title: string;
+  items: AnimeNote[];
+  onRemove: (id: string) => void;
+  canModerate: boolean;
+}) {
+  return (
+    <section>
+      <p className="section-label mb-2">{title} · {items.length}</p>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted">目前沒有短評</p>
+      ) : (
+        <ul className="divide-y divide-border/40 border-y border-border/40">
+          {items.map((note) => (
+            <li key={note.id} className="py-3 text-sm">
+              <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+                <span>{noteTypeLabel[note.type]}</span>
+                {note.episodeNumber && <span className="font-mono">EP{note.episodeNumber}</span>}
+                <span>{spoilerLabel[note.spoilerLevel]}</span>
+                {note.userName && <span>{note.userName}</span>}
+                {(canModerate || title === "我的短評") && (
+                  <button onClick={() => onRemove(note.id)} className="ml-auto text-accent">刪除</button>
+                )}
+              </div>
+              {note.spoilerLevel === "none" ? (
+                <p className="whitespace-pre-wrap leading-relaxed text-text">{note.content}</p>
+              ) : (
+                <details>
+                  <summary className="cursor-pointer text-muted hover:text-text">展開防雷內容</summary>
+                  <p className="mt-2 whitespace-pre-wrap leading-relaxed text-text">{note.content}</p>
+                </details>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

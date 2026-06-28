@@ -4,6 +4,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { useAuth, login } from "../lib/auth";
 import { Button } from "../components/ui";
+import { AnnouncementStrip } from "../components/Announcements";
 import { EASE } from "../lib/motion";
 
 gsap.registerPlugin(useGSAP);
@@ -113,6 +114,10 @@ export function LandingPage() {
           {errorMessages[error] ?? "發生未知錯誤，請再試一次。"}
         </p>
       )}
+
+      <div data-hero className="mt-8 w-full max-w-2xl text-left">
+        <AnnouncementStrip limit={2} />
+      </div>
 
       <div data-hero className="mt-10 flex items-center gap-0 text-xs text-muted/50">
         <span className="rounded-full border border-border/60 px-3 py-1">① Discord 登入</span>

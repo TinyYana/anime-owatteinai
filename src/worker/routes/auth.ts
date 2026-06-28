@@ -18,8 +18,13 @@ import {
 import { permissionsForRole, requireAuth } from "../middleware/auth";
 import { rateLimit } from "../middleware/rateLimit";
 import { audit } from "../lib/audit";
+import { recordActivityEvent } from "../lib/activity";
+import { sendDM } from "../lib/discord";
+import { buildPersonalTodayBrief } from "../lib/watchBrief";
+import { parseBody } from "../util";
+import { updateNotificationSettingsSchema } from "../../shared/validators";
 import type { AppEnv } from "../env";
-import type { MeResponse } from "../../shared/types";
+import type { MeResponse, NotificationSettings } from "../../shared/types";
 
 export const authRoutes = new Hono<AppEnv>();
 
@@ -134,6 +139,13 @@ authRoutes.get(
       ua: c.req.header("User-Agent"),
       metadata: { discordId: discordUser.id },
     });
+    void recordActivityEvent(db, {
+      actorUserId: userId,
+      eventType: "user.login",
+      targetType: "user",
+      targetId: userId,
+      visibility: "system",
+    });
 
     // Append the session cookie (Hono merges multiple Set-Cookie headers).
     c.header(
@@ -152,6 +164,13 @@ authRoutes.post("/logout", requireAuth, async (c) => {
   const db = c.get("db");
   void audit(db, "user.logout", user.id, {
     ip: c.req.header("CF-Connecting-IP") ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim(),
+  });
+  void recordActivityEvent(db, {
+    actorUserId: user.id,
+    eventType: "user.logout",
+    targetType: "user",
+    targetId: user.id,
+    visibility: "system",
   });
   c.header("Set-Cookie", clearSessionCookie(c.env.APP_BASE_URL));
   return c.json({ ok: true });
@@ -172,4 +191,42 @@ meRoute.get("/", requireAuth, async (c) => {
     lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
   };
   return c.json(body);
+});
+
+function notificationSettings(u: typeof users.$inferSelect): NotificationSettings {
+  return {
+    dailyDmEnabled: u.dailyDmEnabled,
+    dailyDmIncludeCommunity: u.dailyDmIncludeCommunity,
+    dailyDmLastSentAt: u.dailyDmLastSentAt ? u.dailyDmLastSentAt.toISOString() : null,
+  };
+}
+
+meRoute.get("/notification-settings", requireAuth, async (c) => {
+  return c.json(notificationSettings(c.get("user")));
+});
+
+meRoute.patch("/notification-settings", requireAuth, async (c) => {
+  const body = await parseBody(c, updateNotificationSettingsSchema);
+  if (body instanceof Response) return body;
+
+  const [updated] = await c.get("db")
+    .update(users)
+    .set({ ...body, updatedAt: new Date() })
+    .where(eq(users.id, c.get("user").id))
+    .returning();
+  return c.json(notificationSettings(updated!));
+});
+
+meRoute.post("/notification-settings/test-dm", requireAuth, async (c) => {
+  if (!c.env.DISCORD_BOT_TOKEN) {
+    return c.json({ error: { code: "NOT_CONFIGURED", message: "DISCORD_BOT_TOKEN 未設定" } }, 503);
+  }
+
+  const user = c.get("user");
+  const content = await buildPersonalTodayBrief(c.get("db"), user.discordId, user.dailyDmIncludeCommunity);
+  const ok = await sendDM(c.env.DISCORD_BOT_TOKEN, user.discordId, content);
+  if (!ok) {
+    return c.json({ error: { code: "DISCORD_DM_FAILED", message: "Discord DM 發送失敗，請確認 Bot 與 DM 權限。" } }, 502);
+  }
+  return c.json({ ok: true });
 });

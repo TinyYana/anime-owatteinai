@@ -7,6 +7,8 @@ import { rateLimit } from "../middleware/rateLimit";
 import { parseBody } from "../util";
 import { createApplicationSchema } from "../../shared/validators";
 import { audit } from "../lib/audit";
+import { recordActivityEvent } from "../lib/activity";
+import { createNotification } from "../lib/notifications";
 import { sendDM } from "../lib/discord";
 import type { AppEnv } from "../env";
 
@@ -64,6 +66,13 @@ applicationRoutes.post(
     void audit(db, "application.submit", user.id, {
       targetType: "application",
       targetId: result?.id,
+    });
+    void recordActivityEvent(db, {
+      actorUserId: user.id,
+      eventType: "application.submit",
+      targetType: "application",
+      targetId: result?.id,
+      visibility: "system",
     });
 
     return c.json(result, existingPending ? 200 : 201);
@@ -140,6 +149,22 @@ async function review(c: Context<AppEnv>, status: "approved" | "rejected") {
     targetType: "application",
     targetId: id,
     metadata: { applicantUserId: app.userId },
+  });
+  void recordActivityEvent(db, {
+    actorUserId: reviewer.id,
+    eventType: action,
+    targetType: "application",
+    targetId: id,
+    visibility: "system",
+    metadata: { applicantUserId: app.userId },
+  });
+
+  void createNotification(db, {
+    userId: app.userId,
+    type: status === "approved" ? "application_approved" : "application_rejected",
+    title: status === "approved" ? "申請已通過" : "申請未通過",
+    body: status === "approved" ? "歡迎加入追番進行式。" : "如果有疑問，可以再聯繫管理員。",
+    linkUrl: status === "approved" ? "/app" : "/apply",
   });
 
   // DM the applicant — fire-and-forget, never block the response

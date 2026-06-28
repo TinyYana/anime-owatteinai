@@ -27,16 +27,6 @@
     "react-router-dom": "^6.28.0",
     "zod": "^3.24.1"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "workerd",
-      "sharp"
-    ],
-    "overrides": {
-      "esbuild": ">=0.25.0"
-    }
-  },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",
     "@tailwindcss/vite": "^4.0.0",

@@ -17,7 +17,7 @@ query ($search: String) {
       title { romaji english native }
       synonyms
       episodes status season seasonYear format
-      coverImage { medium }
+      coverImage { extraLarge }
     }
   }
 }`;
@@ -34,7 +34,7 @@ interface AniListMedia {
   season: string | null;
   seasonYear: number | null;
   format: string | null;
-  coverImage: { medium: string | null };
+  coverImage: { extraLarge: string | null };
 }
 interface AniListResponse {
   data?: { Page?: { media?: AniListMedia[] } };
@@ -159,7 +159,7 @@ function normalizeAniList(m: AniListMedia): AnimeSearchCandidate {
     seasonYear: m.seasonYear ?? undefined,
     format: m.format ?? undefined,
     statusExternal: m.status ?? undefined,
-    coverImageUrl: m.coverImage.medium ?? undefined,
+    coverImageUrl: m.coverImage.extraLarge ?? undefined,
     source: "anilist",
   };
 }
@@ -284,6 +284,44 @@ export async function searchExternal(
   }
 
   return results;
+}
+
+const ANILIST_COVERS_QUERY = `
+query ($ids: [Int]) {
+  Page(perPage: 50) {
+    media(id_in: $ids, type: ANIME) {
+      id
+      coverImage { extraLarge }
+    }
+  }
+}`;
+
+interface AniListCoversResponse {
+  data?: { Page?: { media?: Array<{ id: number; coverImage: { extraLarge: string | null } }> } };
+}
+
+/** Fetch extraLarge cover URLs for a list of AniList IDs. Returns a map of anilistId → url. */
+export async function fetchAniListCovers(ids: number[]): Promise<Map<number, string>> {
+  const result = new Map<number, string>();
+  // AniList allows up to 50 per Page; batch in chunks of 50
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    try {
+      const res = await fetch(ANILIST_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query: ANILIST_COVERS_QUERY, variables: { ids: chunk } }),
+      });
+      if (!res.ok) continue;
+      const json = (await res.json()) as AniListCoversResponse;
+      for (const m of json.data?.Page?.media ?? []) {
+        if (m.coverImage.extraLarge) result.set(m.id, m.coverImage.extraLarge);
+      }
+    } catch {
+      // skip failed chunk, continue
+    }
+  }
+  return result;
 }
 
 function dedup(candidates: AnimeSearchCandidate[]): AnimeSearchCandidate[] {

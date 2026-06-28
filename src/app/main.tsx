@@ -15,6 +15,7 @@ import { AddAnimePage } from "./routes/AddAnimePage";
 import { AdminApplicationsPage } from "./routes/AdminApplicationsPage";
 import { AdminPanelPage } from "./routes/AdminPanelPage";
 import { SettingsPage } from "./routes/SettingsPage";
+import { NotificationsPage } from "./routes/NotificationsPage";
 import { TermsPage } from "./routes/TermsPage";
 import "./styles/index.css";
 
@@ -44,6 +45,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="my-anime" element={<MyAnimePage />} />
             <Route path="anime/new" element={<AddAnimePage />} />
             <Route path="anime/:id" element={<AnimeDetailPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route
               path="admin/applications"

@@ -12,6 +12,7 @@ import {
 } from "../../shared/validators";
 import { searchExternal } from "../lib/metadata";
 import { audit } from "../lib/audit";
+import { recordActivityEvent } from "../lib/activity";
 import type { AppEnv } from "../env";
 
 export const animeRoutes = new Hono<AppEnv>();
@@ -121,8 +122,9 @@ animeRoutes.post("/import", rateLimit("anime:import"), async (c) => {
 
   if (existing) {
     const synonyms = mergeSynonyms(existing.synonyms, body.synonyms, body.observedTitle);
+    const synonymsChanged = !!synonyms && JSON.stringify(synonyms) !== JSON.stringify(existing.synonyms);
     const animeRow =
-      synonyms && JSON.stringify(synonyms) !== JSON.stringify(existing.synonyms)
+      synonymsChanged
         ? (
             await db
               .update(anime)
@@ -131,6 +133,17 @@ animeRoutes.post("/import", rateLimit("anime:import"), async (c) => {
               .returning()
           )[0] ?? existing
         : existing;
+
+    if (synonymsChanged) {
+      void recordActivityEvent(db, {
+        actorUserId: c.get("user").id,
+        eventType: "anime.alias_added",
+        targetType: "anime",
+        targetId: existing.id,
+        visibility: "system",
+        metadata: { observedTitle: body.observedTitle ?? null },
+      });
+    }
 
     if (body.addToList) {
       const alreadyTracked = await db.query.userAnime.findFirst({
@@ -141,6 +154,14 @@ animeRoutes.post("/import", rateLimit("anime:import"), async (c) => {
           .insert(userAnime)
           .values({ userId: c.get("user").id, animeId: existing.id, status: "planned" })
           .onConflictDoNothing();
+        void recordActivityEvent(db, {
+          actorUserId: c.get("user").id,
+          eventType: "anime.added_to_list",
+          targetType: "anime",
+          targetId: existing.id,
+          visibility: "private",
+          metadata: { status: "planned", source: "import_existing" },
+        });
       }
     }
     return c.json({ anime: animeRow }, 200);
@@ -181,11 +202,27 @@ animeRoutes.post("/import", rateLimit("anime:import"), async (c) => {
       .insert(userAnime)
       .values({ userId: c.get("user").id, animeId: inserted.id, status: "planned" })
       .onConflictDoNothing();
+    void recordActivityEvent(db, {
+      actorUserId: c.get("user").id,
+      eventType: "anime.added_to_list",
+      targetType: "anime",
+      targetId: inserted.id,
+      visibility: "private",
+      metadata: { status: "planned", source: "import" },
+    });
   }
 
   void audit(db, "anime.import", c.get("user").id, {
     targetType: "anime",
     targetId: inserted.id,
+    metadata: { title: inserted.title, source: inserted.metadataSource },
+  });
+  void recordActivityEvent(db, {
+    actorUserId: c.get("user").id,
+    eventType: "anime.imported",
+    targetType: "anime",
+    targetId: inserted.id,
+    visibility: "system",
     metadata: { title: inserted.title, source: inserted.metadataSource },
   });
 
@@ -208,6 +245,14 @@ animeRoutes.post("/", async (c) => {
       createdByUserId: c.get("user").id,
     })
     .returning();
+  void recordActivityEvent(db, {
+    actorUserId: c.get("user").id,
+    eventType: "anime.imported",
+    targetType: "anime",
+    targetId: inserted?.id,
+    visibility: "system",
+    metadata: { title: body.title, source: "manual" },
+  });
   return c.json(inserted, 201);
 });
 

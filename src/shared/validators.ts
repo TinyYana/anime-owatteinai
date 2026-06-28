@@ -4,6 +4,12 @@ import {
   SOURCE_TYPES,
   ANIME_PRIORITIES,
   METADATA_SOURCES,
+  NOTIFICATION_TYPES,
+  ANNOUNCEMENT_LEVELS,
+  ANNOUNCEMENT_AUDIENCES,
+  ANIME_NOTE_TYPES,
+  SPOILER_LEVELS,
+  NOTE_VISIBILITIES,
 } from "./types";
 
 // Zod schemas for every write endpoint. The Worker validates all input through
@@ -15,6 +21,33 @@ export const watchStatusSchema = z.enum(WATCH_STATUSES as [string, ...string[]])
 export const sourceTypeSchema = z.enum(SOURCE_TYPES as [string, ...string[]]);
 export const animePrioritySchema = z.enum(ANIME_PRIORITIES as [string, ...string[]]);
 export const metadataSourceSchema = z.enum(METADATA_SOURCES as [string, ...string[]]);
+export const notificationTypeSchema = z.enum(NOTIFICATION_TYPES as [string, ...string[]]);
+export const announcementLevelSchema = z.enum(ANNOUNCEMENT_LEVELS as [string, ...string[]]);
+export const announcementAudienceSchema = z.enum(ANNOUNCEMENT_AUDIENCES as [string, ...string[]]);
+export const animeNoteTypeSchema = z.enum(ANIME_NOTE_TYPES as [string, ...string[]]);
+export const spoilerLevelSchema = z.enum(SPOILER_LEVELS as [string, ...string[]]);
+export const noteVisibilitySchema = z.enum(NOTE_VISIBILITIES as [string, ...string[]]);
+
+const optionalDateString = z
+  .string()
+  .trim()
+  .datetime({ offset: true })
+  .optional()
+  .nullable();
+
+export const linkUrlSchema = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine((value) => {
+    if (value.startsWith("/")) return !value.startsWith("//");
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "Invalid link URL");
 
 // --- Anime ---
 export const createAnimeSchema = z.object({
@@ -95,6 +128,51 @@ export const createApplicationSchema = z.object({
   message: z.string().trim().max(1000).optional().nullable(),
 });
 
+// --- Notification settings ---
+export const updateNotificationSettingsSchema = z
+  .object({
+    dailyDmEnabled: z.boolean(),
+    dailyDmIncludeCommunity: z.boolean(),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: "No fields to update" });
+
+export const createNotificationSchema = z.object({
+  userId: z.string().uuid(),
+  type: notificationTypeSchema.default("system"),
+  title: nonEmpty(120),
+  body: z.string().trim().max(1000).optional().nullable(),
+  linkUrl: linkUrlSchema.optional().nullable(),
+});
+
+export const createAnnouncementSchema = z.object({
+  title: nonEmpty(120),
+  content: nonEmpty(2000),
+  level: announcementLevelSchema.default("info"),
+  audience: announcementAudienceSchema.default("all"),
+  isActive: z.boolean().default(true),
+  startsAt: optionalDateString,
+  endsAt: optionalDateString,
+});
+
+export const updateAnnouncementSchema = createAnnouncementSchema.partial().refine(
+  (v) => Object.keys(v).length > 0,
+  { message: "No fields to update" },
+);
+
+export const createAnimeNoteSchema = z.object({
+  episodeNumber: z.number().int().positive().optional().nullable(),
+  type: animeNoteTypeSchema.default("note"),
+  spoilerLevel: spoilerLevelSchema,
+  visibility: noteVisibilitySchema.default("private"),
+  content: nonEmpty(2000),
+});
+
+export const updateAnimeNoteSchema = createAnimeNoteSchema.partial().refine(
+  (v) => Object.keys(v).length > 0,
+  { message: "No fields to update" },
+);
+
 // --- Anime import (from external search) ---
 export const importAnimeSchema = z.object({
   externalAnilistId: z.number().int().positive().optional(),
@@ -128,6 +206,12 @@ export type UpdateMyAnimeInput = z.infer<typeof updateMyAnimeSchema>;
 export type CreateSourceLinkInput = z.infer<typeof createSourceLinkSchema>;
 export type CreateWatchSessionInput = z.infer<typeof createWatchSessionSchema>;
 export type CreateApplicationInput = z.infer<typeof createApplicationSchema>;
+export type UpdateNotificationSettingsInput = z.infer<typeof updateNotificationSettingsSchema>;
+export type CreateNotificationInput = z.infer<typeof createNotificationSchema>;
+export type CreateAnnouncementInput = z.infer<typeof createAnnouncementSchema>;
+export type UpdateAnnouncementInput = z.infer<typeof updateAnnouncementSchema>;
+export type CreateAnimeNoteInput = z.infer<typeof createAnimeNoteSchema>;
+export type UpdateAnimeNoteInput = z.infer<typeof updateAnimeNoteSchema>;
 
 // --- Safe external URL validation ---
 // Used wherever we accept a user-supplied URL that will only be stored (never fetched).

@@ -5,6 +5,7 @@ import { requireAuth, requireAppAccess, requirePermission } from "../middleware/
 import { parseBody } from "../util";
 import { createSourceLinkSchema } from "../../shared/validators";
 import { audit } from "../lib/audit";
+import { recordActivityEvent } from "../lib/activity";
 import type { AppEnv } from "../env";
 
 // Mounted at /api — covers both /anime/:id/source-links and /source-links/:id.
@@ -56,6 +57,14 @@ sourceLinkRoutes.post("/anime/:id/source-links", requirePermission("anime.manage
     targetId: inserted?.id,
     metadata: { animeId, label: body.label, url: body.url },
   });
+  void recordActivityEvent(db, {
+    actorUserId: c.get("user").id,
+    eventType: "source_link.created",
+    targetType: "source_link",
+    targetId: inserted?.id,
+    visibility: "private",
+    metadata: { animeId, label: body.label, type: body.type },
+  });
 
   return c.json(inserted, 201);
 });
@@ -74,6 +83,14 @@ sourceLinkRoutes.delete("/source-links/:id", async (c) => {
     targetType: "source_link",
     targetId: link.id,
     metadata: { animeId: link.animeId, label: link.label, url: link.url },
+  });
+  void recordActivityEvent(db, {
+    actorUserId: c.get("user").id,
+    eventType: "source_link.deleted",
+    targetType: "source_link",
+    targetId: link.id,
+    visibility: "private",
+    metadata: { animeId: link.animeId, label: link.label, type: link.type },
   });
 
   return c.json({ ok: true });

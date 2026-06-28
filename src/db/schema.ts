@@ -16,8 +16,14 @@ import {
   SOURCE_TYPES,
   ANIME_PRIORITIES,
   APPLICATION_STATUSES,
+  ACTIVITY_VISIBILITIES,
+  ANNOUNCEMENT_LEVELS,
+  ANNOUNCEMENT_AUDIENCES,
+  ANIME_NOTE_TYPES,
+  SPOILER_LEVELS,
+  NOTE_VISIBILITIES,
 } from "../shared/types";
-import type { MetadataSource } from "../shared/types";
+import type { MetadataSource, NotificationType } from "../shared/types";
 import type { RolePermission } from "../shared/types";
 
 // All objects live in a dedicated schema owned by the app's DB role, so the
@@ -30,6 +36,12 @@ export const watchStatusEnum = appSchema.enum("watch_status", WATCH_STATUSES as 
 export const sourceTypeEnum = appSchema.enum("source_type", SOURCE_TYPES as [string, ...string[]]);
 export const animePriorityEnum = appSchema.enum("anime_priority", ANIME_PRIORITIES as [string, ...string[]]);
 export const applicationStatusEnum = appSchema.enum("application_status", APPLICATION_STATUSES as [string, ...string[]]);
+export const activityVisibilityEnum = appSchema.enum("activity_visibility", ACTIVITY_VISIBILITIES as [string, ...string[]]);
+export const announcementLevelEnum = appSchema.enum("announcement_level", ANNOUNCEMENT_LEVELS as [string, ...string[]]);
+export const announcementAudienceEnum = appSchema.enum("announcement_audience", ANNOUNCEMENT_AUDIENCES as [string, ...string[]]);
+export const animeNoteTypeEnum = appSchema.enum("anime_note_type", ANIME_NOTE_TYPES as [string, ...string[]]);
+export const spoilerLevelEnum = appSchema.enum("spoiler_level", SPOILER_LEVELS as [string, ...string[]]);
+export const noteVisibilityEnum = appSchema.enum("note_visibility", NOTE_VISIBILITIES as [string, ...string[]]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -45,6 +57,9 @@ export const users = appSchema.table("users", {
   role: userRoleEnum("role").notNull().default("pending"),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   isTest: boolean("is_test").notNull().default(false),
+  dailyDmEnabled: boolean("daily_dm_enabled").notNull().default(false),
+  dailyDmIncludeCommunity: boolean("daily_dm_include_community").notNull().default(true),
+  dailyDmLastSentAt: timestamp("daily_dm_last_sent_at", { withTimezone: true }),
   ...timestamps,
 });
 
@@ -152,6 +167,84 @@ export const watchSessions = appSchema.table(
   ],
 );
 
+export const activityEvents = appSchema.table(
+  "activity_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    eventType: text("event_type").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id"),
+    visibility: activityVisibilityEnum("visibility").notNull(),
+    metadataJson: jsonb("metadata_json").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("activity_events_actor_visibility_created_idx").on(t.actorUserId, t.visibility, t.createdAt),
+    index("activity_events_event_type_idx").on(t.eventType),
+    index("activity_events_target_idx").on(t.targetType, t.targetId),
+  ],
+);
+
+export const notifications = appSchema.table(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull().$type<NotificationType>(),
+    title: text("title").notNull(),
+    body: text("body"),
+    linkUrl: text("link_url"),
+    isRead: boolean("is_read").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("notifications_user_read_created_idx").on(t.userId, t.isRead, t.createdAt),
+  ],
+);
+
+export const siteAnnouncements = appSchema.table(
+  "site_announcements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    level: announcementLevelEnum("level").notNull().default("info"),
+    audience: announcementAudienceEnum("audience").notNull().default("all"),
+    isActive: boolean("is_active").notNull().default(true),
+    startsAt: timestamp("starts_at", { withTimezone: true }),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    index("site_announcements_active_audience_idx").on(t.isActive, t.audience),
+    index("site_announcements_window_idx").on(t.startsAt, t.endsAt),
+  ],
+);
+
+export const animeNotes = appSchema.table(
+  "anime_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    animeId: uuid("anime_id").notNull().references(() => anime.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    episodeNumber: integer("episode_number"),
+    type: animeNoteTypeEnum("type").notNull().default("note"),
+    spoilerLevel: spoilerLevelEnum("spoiler_level").notNull().default("none"),
+    visibility: noteVisibilityEnum("visibility").notNull().default("private"),
+    content: text("content").notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("anime_notes_anime_visibility_idx").on(t.animeId, t.visibility),
+    index("anime_notes_user_idx").on(t.userId),
+    index("anime_notes_deleted_idx").on(t.deletedAt),
+  ],
+);
+
 export const accessApplications = appSchema.table(
   "access_applications",
   {
@@ -228,6 +321,10 @@ export type AnimeRow = typeof anime.$inferSelect;
 export type UserAnimeRow = typeof userAnime.$inferSelect;
 export type SourceLinkRow = typeof sourceLinks.$inferSelect;
 export type WatchSessionRow = typeof watchSessions.$inferSelect;
+export type ActivityEventRow = typeof activityEvents.$inferSelect;
+export type NotificationRow = typeof notifications.$inferSelect;
+export type SiteAnnouncementRow = typeof siteAnnouncements.$inferSelect;
+export type AnimeNoteRow = typeof animeNotes.$inferSelect;
 export type AccessApplicationRow = typeof accessApplications.$inferSelect;
 export type AnimeEditRequestRow = typeof animeEditRequests.$inferSelect;
 export type AuditLogRow = typeof auditLogs.$inferSelect;

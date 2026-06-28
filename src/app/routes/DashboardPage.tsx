@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, coverUrl } from "../lib/api";
 import { markEpisodeWatched } from "../lib/watch";
 import { Panel, Badge, Button, ProgressRail, Loading, SourceLinkButtons } from "../components/ui";
+import { AnnouncementStrip } from "../components/Announcements";
 import { useReveal } from "../lib/motion";
-import type { UserAnimeWithAnime, WatchSession, AnimePriority, SourceLink } from "../../shared/types";
+import type { UserAnimeWithAnime, WatchSession, AnimePriority, SourceLink, CommunitySummary } from "../../shared/types";
 
 const priorityRank: Record<AnimePriority, number> = { high: 0, normal: 1, low: 2 };
 
@@ -16,6 +17,7 @@ export function DashboardPage() {
   const [list, setList] = useState<UserAnimeWithAnime[] | null>(null);
   const [sessions, setSessions] = useState<WatchSession[]>([]);
   const [heroLinks, setHeroLinks] = useState<SourceLink[]>([]);
+  const [community, setCommunity] = useState<CommunitySummary | null>(null);
   const [completing, setCompleting] = useState(false);
 
   function loadSessions() {
@@ -24,6 +26,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     api.get<UserAnimeWithAnime[]>("/api/my/anime").then(setList).catch(() => setList([]));
+    api.get<CommunitySummary>("/api/community/summary").then(setCommunity).catch(() => setCommunity({ trendingAnime: [] }));
     loadSessions();
   }, []);
 
@@ -103,6 +106,10 @@ export function DashboardPage() {
         </Link>
       </header>
 
+      <div data-reveal>
+        <AnnouncementStrip />
+      </div>
+
       <section data-reveal className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         {hero ? (
           <HeroCard item={hero} links={heroLinks} completing={completing} onComplete={() => completeNext(hero)} />
@@ -131,6 +138,7 @@ export function DashboardPage() {
             </section>
           )}
           <RecentSessions sessions={sessions.slice(0, 6)} titleById={titleById} />
+          <CommunitySignal summary={community} />
         </aside>
       </section>
 
@@ -139,6 +147,28 @@ export function DashboardPage() {
         <CompactBucket title="暫停中" emptyHint="沒有暫停中的番" items={buckets.paused} />
       </div>
     </div>
+  );
+}
+
+function CommunitySignal({ summary }: { summary: CommunitySummary | null }) {
+  const items = summary?.trendingAnime.slice(0, 5) ?? [];
+  if (items.length === 0) return null;
+  return (
+    <section>
+      <p className="section-label mb-2">社群訊號</p>
+      <ul className="divide-y divide-border/40 border-y border-border/40">
+        {items.map((item) => (
+          <li key={item.animeId} className="py-2.5 text-sm">
+            <Link to={`/app/anime/${item.animeId}`} className="text-text transition-colors hover:text-accent">
+              {item.titleZh ?? item.title}
+            </Link>
+            <p className="mt-0.5 font-mono text-xs text-muted">
+              {item.watchingCount} 人公開追番 · {item.recentProgressCount} 次更新 · {item.noteCount} 則短評
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -161,7 +191,7 @@ function HeroCard({
       {item.anime.coverImageUrl && (
         <Link to={`/app/anime/${item.animeId}`} className="block bg-surface/60">
           <img
-            src={item.anime.coverImageUrl}
+            src={coverUrl(item.anime.coverImageUrl)}
             alt=""
             className="h-full min-h-56 w-full object-cover transition-transform hover:scale-[1.02]"
           />

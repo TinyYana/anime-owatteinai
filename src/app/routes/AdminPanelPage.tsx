@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { Panel, Button, Badge, Loading } from "../components/ui";
+import { Panel, Button, Badge, Loading, Input, Select, Textarea } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import { hasPermission, useAuth } from "../lib/auth";
-import { ROLE_PERMISSION_LABELS, ROLE_PERMISSIONS, USER_ROLES } from "../../shared/types";
-import type { AnimeEditRequest, RolePermission, RolePermissionConfig, UserRole } from "../../shared/types";
+import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_LEVELS, ROLE_PERMISSION_LABELS, ROLE_PERMISSIONS, USER_ROLES } from "../../shared/types";
+import type { AnnouncementAudience, AnnouncementLevel, AnimeEditRequest, RolePermission, RolePermissionConfig, SiteAnnouncement, UserRole } from "../../shared/types";
 
 const ROLE_LABEL: Record<UserRole, string> = {
   owner: "擁有者", admin: "管理員", moderator: "板務", member: "成員", pending: "待審核", banned: "封鎖",
@@ -41,6 +41,15 @@ type Activity = {
   animeTitle: string | null;
   animeTitleFallback: string;
 };
+type AuditLog = {
+  id: string;
+  actorUserId: string | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  createdAt: string;
+  actorName: string | null;
+};
 
 type TestUser = {
   id: string;
@@ -52,7 +61,18 @@ type TestUser = {
 };
 
 type DiscordStatus = { botToken: boolean; guildId: boolean; publicKey: boolean; notificationChannelId: boolean };
-type Tab = "stats" | "users" | "roles" | "edits" | "activity" | "test" | "discord";
+type Tab = "stats" | "users" | "roles" | "edits" | "activity" | "audit" | "announcements" | "test" | "discord";
+
+const ANNOUNCEMENT_LEVEL_LABEL: Record<AnnouncementLevel, string> = {
+  info: "一般",
+  warning: "注意",
+  critical: "重要",
+};
+const ANNOUNCEMENT_AUDIENCE_LABEL: Record<AnnouncementAudience, string> = {
+  all: "全部",
+  member: "成員",
+  admin: "管理員",
+};
 
 export function AdminPanelPage() {
   const { me, refetch } = useAuth();
@@ -62,11 +82,27 @@ export function AdminPanelPage() {
   const [roleConfigs, setRoleConfigs] = useState<RolePermissionConfig[] | null>(null);
   const [editRequests, setEditRequests] = useState<AnimeEditRequest[] | null>(null);
   const [activity, setActivity] = useState<Activity[] | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[] | null>(null);
+  const [announcements, setAnnouncements] = useState<SiteAnnouncement[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [testUsers, setTestUsers] = useState<TestUser[] | null>(null);
   const [discordStatus, setDiscordStatus] = useState<DiscordStatus | null>(null);
+  const [discordRegisterResult, setDiscordRegisterResult] = useState<string | null>(null);
+  const [backfillResult, setBackfillResult] = useState<string | null>(null);
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null);
+  const [announcementError, setAnnouncementError] = useState<string | null>(null);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: "",
+    content: "",
+    level: "info" as AnnouncementLevel,
+    audience: "all" as AnnouncementAudience,
+    isActive: true,
+    startsAt: "",
+    endsAt: "",
+  });
   const canManageRoles = hasPermission(me, "roles.manage");
   const canManageUsers = hasPermission(me, "users.manage");
+  const canManageAnnouncements = me?.role === "owner" || me?.role === "admin";
 
   const scope = useReveal<HTMLDivElement>([tab]);
 
@@ -84,8 +120,14 @@ export function AdminPanelPage() {
     if (tab === "activity" && activity === null) {
       api.get<Activity[]>("/api/admin/panel/activity").then(setActivity).catch(() => setActivity([]));
     }
+    if (tab === "audit" && auditLogs === null) {
+      api.get<AuditLog[]>("/api/admin/panel/audit-logs").then(setAuditLogs).catch(() => setAuditLogs([]));
+    }
     if (tab === "edits" && editRequests === null) {
       api.get<AnimeEditRequest[]>("/api/admin/panel/edit-requests").then(setEditRequests).catch(() => setEditRequests([]));
+    }
+    if (tab === "announcements" && announcements === null) {
+      api.get<SiteAnnouncement[]>("/api/admin/announcements").then(setAnnouncements).catch(() => setAnnouncements([]));
     }
     if (tab === "test" && testUsers === null) {
       api.get<TestUser[]>("/api/admin/panel/test/users").then(setTestUsers).catch(() => setTestUsers([]));
@@ -93,7 +135,7 @@ export function AdminPanelPage() {
     if (tab === "discord" && discordStatus === null) {
       api.get<DiscordStatus>("/api/admin/panel/discord/status").then(setDiscordStatus).catch(() => undefined);
     }
-  }, [tab, users, roleConfigs, activity, editRequests, testUsers, discordStatus]);
+  }, [tab, users, roleConfigs, activity, auditLogs, editRequests, announcements, testUsers, discordStatus]);
 
   async function changeRole(userId: string, role: UserRole) {
     setBusyId(userId);
@@ -154,6 +196,68 @@ export function AdminPanelPage() {
     }
   }
 
+  function resetAnnouncementForm() {
+    setAnnouncementError(null);
+    setEditingAnnouncementId(null);
+    setAnnouncementForm({
+      title: "",
+      content: "",
+      level: "info",
+      audience: "all",
+      isActive: true,
+      startsAt: "",
+      endsAt: "",
+    });
+  }
+
+  function editAnnouncement(item: SiteAnnouncement) {
+    setEditingAnnouncementId(item.id);
+    setAnnouncementForm({
+      title: item.title,
+      content: item.content,
+      level: item.level,
+      audience: item.audience,
+      isActive: item.isActive,
+      startsAt: item.startsAt ? new Date(item.startsAt).toISOString().slice(0, 16) : "",
+      endsAt: item.endsAt ? new Date(item.endsAt).toISOString().slice(0, 16) : "",
+    });
+  }
+
+  async function saveAnnouncement(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = {
+      ...announcementForm,
+      startsAt: announcementForm.startsAt ? new Date(announcementForm.startsAt).toISOString() : null,
+      endsAt: announcementForm.endsAt ? new Date(announcementForm.endsAt).toISOString() : null,
+    };
+    setBusyId("announcement:save");
+    setAnnouncementError(null);
+    try {
+      if (editingAnnouncementId) {
+        const updated = await api.patch<SiteAnnouncement>(`/api/admin/announcements/${editingAnnouncementId}`, payload);
+        setAnnouncements((prev) => prev?.map((item) => item.id === updated.id ? updated : item) ?? prev);
+      } else {
+        const created = await api.post<SiteAnnouncement>("/api/admin/announcements", payload);
+        setAnnouncements((prev) => [created, ...(prev ?? [])]);
+      }
+      resetAnnouncementForm();
+    } catch (err) {
+      setAnnouncementError(err instanceof Error ? err.message : "公告儲存失敗，請確認資料庫遷移已執行（pnpm db:migrate）。");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function deactivateAnnouncement(id: string) {
+    setBusyId(`announcement:${id}`);
+    try {
+      await api.del(`/api/admin/announcements/${id}`);
+      setAnnouncements((prev) => prev?.map((item) => item.id === id ? { ...item, isActive: false } : item) ?? prev);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const tabBtn = (t: Tab, label: string) => (
     <button
       onClick={() => setTab(t)}
@@ -185,6 +289,8 @@ export function AdminPanelPage() {
         {tabBtn("roles", "身份權限")}
         {tabBtn("edits", `動畫編輯${stats?.pendingEditRequests ? ` (${stats.pendingEditRequests})` : ""}`)}
         {tabBtn("activity", "觀看紀錄")}
+        {tabBtn("audit", "審計")}
+        {tabBtn("announcements", "公告")}
         {tabBtn("test", "測試")}
         {tabBtn("discord", "Discord")}
       </nav>
@@ -224,6 +330,32 @@ export function AdminPanelPage() {
                 </div>
               </Panel>
 
+              <Panel className="space-y-3">
+                <p className="section-label">資料維護</p>
+                <p className="text-sm text-muted">將 DB 中舊的 AniList 封面縮圖（medium 尺寸，約 115px）升級為 large（約 230px）。執行一次即可，重複執行無害。</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    disabled={busyId === "backfill:cover"}
+                    onClick={async () => {
+                      setBusyId("backfill:cover");
+                      setBackfillResult(null);
+                      try {
+                        const res = await api.post<{ updated: number }>("/api/admin/panel/backfill/cover-images", {});
+                        setBackfillResult(`完成，共更新 ${res.updated} 筆封面 URL。`);
+                      } catch {
+                        setBackfillResult("執行失敗，請確認資料庫連線正常。");
+                      } finally {
+                        setBusyId(null);
+                      }
+                    }}
+                  >
+                    {busyId === "backfill:cover" ? "更新中…" : "升級封面畫質"}
+                  </Button>
+                  {backfillResult && <p className="text-xs text-signal">{backfillResult}</p>}
+                </div>
+              </Panel>
+
               <Panel className="space-y-2">
                 <p className="section-label">當前登入身分</p>
                 <p className="text-sm text-text">{me?.discordGlobalName ?? me?.discordUsername}</p>
@@ -241,46 +373,53 @@ export function AdminPanelPage() {
           {users === null ? <Loading /> : users.length === 0 ? (
             <p className="text-muted">沒有使用者資料。</p>
           ) : (
-            <ul className="space-y-2">
-              {users.map((u) => (
-                <Panel key={u.id} className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-text">
-                        {u.discordGlobalName ?? u.discordUsername}
-                      </span>
-                      <Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge>
-                    </div>
-                    <p className="font-mono text-xs text-muted mt-0.5">
-                      @{u.discordUsername} · {u.animeCount} 部番 · 加入 {new Date(u.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  {u.id !== me?.id && canManageUsers && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {USER_ROLES
-                        .filter((r) => r !== u.role)
-                        .map((r) => (
-                          <Button
-                            key={r}
-                            variant={r === "banned" ? "danger" : "ghost"}
-                            className="!py-1 !px-2.5 text-xs"
-                            disabled={busyId === u.id}
-                            onClick={() => changeRole(u.id, r)}
-                          >
-                            {ROLE_LABEL[r]}
-                          </Button>
-                        ))}
-                    </div>
-                  )}
-                  {u.id !== me?.id && !canManageUsers && (
-                    <span className="text-xs text-muted">沒有使用者管理權限</span>
-                  )}
-                  {u.id === me?.id && (
-                    <span className="text-xs text-muted">（自己）</span>
-                  )}
-                </Panel>
-              ))}
-            </ul>
+            <div className="overflow-x-auto border-y border-border/50">
+              <table className="min-w-[56rem] w-full text-left text-sm">
+                <thead className="text-xs text-muted">
+                  <tr className="border-b border-border/40">
+                    <th className="py-2 pr-4 font-medium">使用者</th>
+                    <th className="py-2 pr-4 font-medium">身份</th>
+                    <th className="py-2 pr-4 font-medium">追番</th>
+                    <th className="py-2 pr-4 font-medium">加入</th>
+                    <th className="py-2 font-medium">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td className="py-2.5 pr-4">
+                        <div className="font-medium text-text">{u.discordGlobalName ?? u.discordUsername}</div>
+                        <div className="font-mono text-xs text-muted">@{u.discordUsername}</div>
+                      </td>
+                      <td className="py-2.5 pr-4"><Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge></td>
+                      <td className="py-2.5 pr-4 font-mono text-xs text-muted">{u.animeCount}</td>
+                      <td className="py-2.5 pr-4 font-mono text-xs text-muted">{new Date(u.createdAt).toLocaleDateString()}</td>
+                      <td className="py-2.5">
+                        {u.id === me?.id ? (
+                          <span className="text-xs text-muted">自己</span>
+                        ) : canManageUsers ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {USER_ROLES.filter((r) => r !== u.role).map((r) => (
+                              <Button
+                                key={r}
+                                variant={r === "banned" ? "danger" : "ghost"}
+                                className="!py-1 !px-2 text-xs"
+                                disabled={busyId === u.id}
+                                onClick={() => changeRole(u.id, r)}
+                              >
+                                {ROLE_LABEL[r]}
+                              </Button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted">沒有權限</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -368,6 +507,165 @@ export function AdminPanelPage() {
         </div>
       )}
 
+      {tab === "audit" && (
+        <div data-reveal>
+          {auditLogs === null ? <Loading /> : auditLogs.length === 0 ? (
+            <p className="text-muted">沒有審計紀錄。</p>
+          ) : (
+            <div className="overflow-x-auto border-y border-border/50">
+              <table className="min-w-[46rem] w-full text-left text-sm">
+                <thead className="text-xs text-muted">
+                  <tr className="border-b border-border/40">
+                    <th className="py-2 pr-4 font-medium">時間</th>
+                    <th className="py-2 pr-4 font-medium">操作者</th>
+                    <th className="py-2 pr-4 font-medium">動作</th>
+                    <th className="py-2 font-medium">目標</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {auditLogs.map((row) => (
+                    <tr key={row.id}>
+                      <td className="py-2.5 pr-4 font-mono text-xs text-muted">{new Date(row.createdAt).toLocaleString()}</td>
+                      <td className="py-2.5 pr-4 text-text">{row.actorName ?? row.actorUserId ?? "system"}</td>
+                      <td className="py-2.5 pr-4 font-mono text-xs text-signal">{row.action}</td>
+                      <td className="py-2.5 font-mono text-xs text-muted">
+                        {row.targetType ?? "-"}{row.targetId ? ` · ${row.targetId}` : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "announcements" && (
+        <div data-reveal className="space-y-5">
+          {!canManageAnnouncements ? (
+            <p className="text-muted">只有管理員與擁有者可以管理公告。</p>
+          ) : (
+            <>
+              <form onSubmit={saveAnnouncement} className="space-y-3 border-y border-border/50 py-4">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_9rem_9rem_7rem]">
+                  <Input
+                    value={announcementForm.title}
+                    onChange={(e) => setAnnouncementForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder="公告標題"
+                    maxLength={120}
+                    required
+                  />
+                  <Select
+                    value={announcementForm.level}
+                    onChange={(e) => setAnnouncementForm((f) => ({ ...f, level: e.target.value as AnnouncementLevel }))}
+                  >
+                    {ANNOUNCEMENT_LEVELS.map((level) => (
+                      <option key={level} value={level}>{ANNOUNCEMENT_LEVEL_LABEL[level]}</option>
+                    ))}
+                  </Select>
+                  <Select
+                    value={announcementForm.audience}
+                    onChange={(e) => setAnnouncementForm((f) => ({ ...f, audience: e.target.value as AnnouncementAudience }))}
+                  >
+                    {ANNOUNCEMENT_AUDIENCES.map((audience) => (
+                      <option key={audience} value={audience}>{ANNOUNCEMENT_AUDIENCE_LABEL[audience]}</option>
+                    ))}
+                  </Select>
+                  <label className="flex items-center gap-2 text-sm text-muted">
+                    <input
+                      type="checkbox"
+                      checked={announcementForm.isActive}
+                      onChange={(e) => setAnnouncementForm((f) => ({ ...f, isActive: e.target.checked }))}
+                      className="accent-[var(--color-accent)]"
+                    />
+                    啟用
+                  </label>
+                </div>
+                <Textarea
+                  value={announcementForm.content}
+                  onChange={(e) => setAnnouncementForm((f) => ({ ...f, content: e.target.value }))}
+                  placeholder="公告內容（純文字）"
+                  maxLength={2000}
+                  required
+                />
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[12rem_12rem_auto] lg:items-end">
+                  <Input
+                    type="datetime-local"
+                    value={announcementForm.startsAt}
+                    onChange={(e) => setAnnouncementForm((f) => ({ ...f, startsAt: e.target.value }))}
+                    aria-label="開始時間"
+                  />
+                  <Input
+                    type="datetime-local"
+                    value={announcementForm.endsAt}
+                    onChange={(e) => setAnnouncementForm((f) => ({ ...f, endsAt: e.target.value }))}
+                    aria-label="結束時間"
+                  />
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={busyId === "announcement:save"}>
+                      {editingAnnouncementId ? "儲存公告" : "新增公告"}
+                    </Button>
+                    {editingAnnouncementId && (
+                      <Button type="button" variant="ghost" onClick={resetAnnouncementForm}>取消</Button>
+                    )}
+                  </div>
+                </div>
+                {announcementError && (
+                  <p className="text-xs text-accent">{announcementError}</p>
+                )}
+              </form>
+
+              {announcements === null ? <Loading /> : announcements.length === 0 ? (
+                <p className="text-muted">目前沒有公告。</p>
+              ) : (
+                <div className="overflow-x-auto border-y border-border/50">
+                  <table className="min-w-[54rem] w-full text-left text-sm">
+                    <thead className="text-xs text-muted">
+                      <tr className="border-b border-border/40">
+                        <th className="py-2 pr-4 font-medium">公告</th>
+                        <th className="py-2 pr-4 font-medium">等級</th>
+                        <th className="py-2 pr-4 font-medium">對象</th>
+                        <th className="py-2 pr-4 font-medium">狀態</th>
+                        <th className="py-2 font-medium">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {announcements.map((item) => (
+                        <tr key={item.id}>
+                          <td className="py-2.5 pr-4">
+                            <div className="font-medium text-text">{item.title}</div>
+                            <div className="mt-0.5 line-clamp-1 text-xs text-muted">{item.content}</div>
+                          </td>
+                          <td className="py-2.5 pr-4">{ANNOUNCEMENT_LEVEL_LABEL[item.level]}</td>
+                          <td className="py-2.5 pr-4">{ANNOUNCEMENT_AUDIENCE_LABEL[item.audience]}</td>
+                          <td className="py-2.5 pr-4 font-mono text-xs text-muted">
+                            {item.isActive ? "active" : "inactive"}
+                          </td>
+                          <td className="py-2.5">
+                            <div className="flex gap-2">
+                              <button onClick={() => editAnnouncement(item)} className="text-xs text-accent">編輯</button>
+                              {item.isActive && (
+                                <button
+                                  onClick={() => deactivateAnnouncement(item.id)}
+                                  disabled={busyId === `announcement:${item.id}`}
+                                  className="text-xs text-muted hover:text-accent"
+                                >
+                                  停用
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {tab === "test" && (
         <div data-reveal className="space-y-4">
           <Panel className="space-y-3">
@@ -438,7 +736,7 @@ export function AdminPanelPage() {
               <ul className="space-y-1.5 text-sm">
                 <DiscordStatusRow label="Bot Token" ok={discordStatus.botToken} />
                 <DiscordStatusRow label="Guild ID" ok={discordStatus.guildId} />
-                <DiscordStatusRow label="Public Key（指令驗簽）" ok={discordStatus.publicKey} />
+                <DiscordStatusRow label="Interactions Public Key（可選）" ok={discordStatus.publicKey} />
                 <DiscordStatusRow label="通知頻道 ID" ok={discordStatus.notificationChannelId} />
               </ul>
             )}
@@ -449,17 +747,35 @@ export function AdminPanelPage() {
           </Panel>
 
           <Panel className="space-y-3">
-            <p className="section-label">Slash 指令</p>
+            <p className="section-label">個人化通知</p>
+            <p className="text-sm text-muted">
+              Phase 4 主線改成個人化通知：用 Cron + Discord REST API 送出每日 DM，內容依每個人的追番清單、優先度與最近觀看紀錄整理。
+              社群頻道摘要只使用成員主動公開的追番資料，避免把私人進度丟到公開頻道。
+            </p>
+            <p className="text-xs text-muted">
+              使用者可在設定頁自行開啟每日 DM 並寄送測試訊息；未 opt-in 的成員不會收到自動通知。
+            </p>
+          </Panel>
+
+          <Panel className="space-y-3">
+            <p className="section-label">可選互動入口</p>
             <p className="text-sm text-muted">
               將 <span className="font-mono">/anime</span>（today / watching / share）指令註冊到 Discord。
-              需要先設定好 Bot Token 和 Interactions Endpoint URL（Discord Developer Portal → General → Interactions Endpoint URL 填 <span className="font-mono">{window.location.origin}/api/discord/interactions</span>）。
+              這是 stateless HTTP Interactions，不需要 Gateway 長連線；但它不再是 Phase 4 主線，只當作低優先查詢入口保留。
             </p>
             <Button
+              variant="ghost"
               disabled={busyId === "discord:register" || !discordStatus?.botToken}
               onClick={async () => {
                 setBusyId("discord:register");
+                setDiscordRegisterResult(null);
                 try {
-                  await api.post("/api/admin/panel/discord/register-commands", {});
+                  const result = await api.post<{ scope: "guild" | "global"; status: number }>("/api/admin/panel/discord/register-commands", {});
+                  setDiscordRegisterResult(
+                    result.scope === "guild"
+                      ? "已送出伺服器指令註冊。若 Discord 仍看不到，請確認 bot 邀請時有勾 application.commands scope。"
+                      : "已送出 global 指令註冊。Discord 可能需要一段時間才會同步到伺服器。",
+                  );
                 } finally {
                   setBusyId(null);
                 }
@@ -470,13 +786,18 @@ export function AdminPanelPage() {
             {!discordStatus?.botToken && (
               <p className="text-xs text-accent">需要先設定 DISCORD_BOT_TOKEN。</p>
             )}
+            {discordRegisterResult && <p className="text-xs text-signal">{discordRegisterResult}</p>}
+            <p className="text-xs text-muted">
+              Discord Developer Portal 的 OAuth2 Redirects 是登入 callback，應填 <span className="font-mono">/api/auth/discord/callback</span>。
+              Slash command 的 HTTP 入口要填在 General Information → Interactions Endpoint URL：<span className="font-mono">{window.location.origin}/api/discord/interactions</span>。
+            </p>
           </Panel>
 
           <Panel className="space-y-2">
             <p className="section-label">每日摘要 Cron</p>
             <p className="text-sm text-muted">
               每天 09:00 UTC 自動把社群追番動態發到 <span className="font-mono">DISCORD_NOTIFICATION_CHANNEL_ID</span> 指定頻道。
-              Bot 必須在該頻道有發送訊息的權限。
+              Bot 必須在該頻道有發送訊息的權限；摘要只會列出成員主動公開的追番紀錄。個人 DM 只寄給已開啟每日私訊的成員。
             </p>
           </Panel>
         </div>

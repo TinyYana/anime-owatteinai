@@ -9,6 +9,7 @@ import {
   updateMyAnimeSchema,
   createWatchSessionSchema,
 } from "../../shared/validators";
+import { recordActivityEvent } from "../lib/activity";
 import type { AppEnv } from "../env";
 
 // Select shape that nests the full joined anime row under `anime`.
@@ -102,6 +103,14 @@ myAnimeRoutes.post("/", async (c) => {
       privateNote: body.privateNote ?? null,
     })
     .returning();
+  void recordActivityEvent(db, {
+    actorUserId: userId,
+    eventType: "anime.added_to_list",
+    targetType: "anime",
+    targetId: body.animeId,
+    visibility: "private",
+    metadata: { status: body.status, priority: body.priority },
+  });
   return c.json(inserted[0], 201);
 });
 
@@ -117,6 +126,26 @@ myAnimeRoutes.patch("/:id", async (c) => {
     .returning();
   if (updated.length === 0) {
     return c.json({ error: { code: "NOT_FOUND", message: "Entry not found" } }, 404);
+  }
+  if (body.status) {
+    void recordActivityEvent(db, {
+      actorUserId: c.get("user").id,
+      eventType: "anime.status_changed",
+      targetType: "anime",
+      targetId: updated[0]?.animeId,
+      visibility: "private",
+      metadata: { status: body.status },
+    });
+  }
+  if (body.currentEpisode !== undefined) {
+    void recordActivityEvent(db, {
+      actorUserId: c.get("user").id,
+      eventType: "anime.progress_updated",
+      targetType: "anime",
+      targetId: updated[0]?.animeId,
+      visibility: "private",
+      metadata: { currentEpisode: body.currentEpisode },
+    });
   }
   return c.json(updated[0]);
 });
@@ -186,9 +215,25 @@ watchSessionRoutes.post("/", rateLimit("watchsession:create"), async (c) => {
       note: body.note ?? null,
     })
     .returning();
+  void recordActivityEvent(db, {
+    actorUserId: userId,
+    eventType: "watch_session.created",
+    targetType: "watch_session",
+    targetId: inserted[0]?.id,
+    visibility: "private",
+    metadata: { animeId: body.animeId, episodeNumber: body.episodeNumber, completed: body.completed },
+  });
 
   // On completion, mark it as actively watched and advance progress.
   if (body.completed) {
+    void recordActivityEvent(db, {
+      actorUserId: userId,
+      eventType: "anime.episode_completed",
+      targetType: "anime",
+      targetId: body.animeId,
+      visibility: "private",
+      metadata: { episodeNumber: body.episodeNumber },
+    });
     const tracking = await db.query.userAnime.findFirst({
       where: and(eq(userAnime.userId, userId), eq(userAnime.animeId, body.animeId)),
     });

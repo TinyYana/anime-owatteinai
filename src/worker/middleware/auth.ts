@@ -39,6 +39,24 @@ export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
   await next();
 });
 
+/** Require a real account, but allow banned users for account-status surfaces. */
+export const requireAccount = createMiddleware<AppEnv>(async (c, next) => {
+  const session = await readSession(c.env.SESSION_SECRET, c.req.header("Cookie") ?? null);
+  if (!session) {
+    return c.json({ error: { code: "UNAUTHENTICATED", message: "Authentication required" } }, 401);
+  }
+
+  const db = c.get("db");
+  const user = await db.query.users.findFirst({ where: eq(users.id, session.userId) });
+  if (!user) {
+    c.header("Set-Cookie", clearSessionCookie(c.env.APP_BASE_URL));
+    return c.json({ error: { code: "UNAUTHENTICATED", message: "Authentication required" } }, 401);
+  }
+
+  c.set("user", user);
+  await next();
+});
+
 function isMissingRolePermissionsTable(err: unknown) {
   return String(err).includes("role_permissions");
 }

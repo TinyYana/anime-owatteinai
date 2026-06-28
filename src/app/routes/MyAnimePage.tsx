@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, coverUrl } from "../lib/api";
 import { Button, Select, Input, Loading, ProgressRail } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import { WATCH_STATUSES, ANIME_PRIORITIES } from "../../shared/types";
@@ -150,7 +150,7 @@ function MyAnimeRow({
       <Link to={`/app/anime/${item.animeId}`} className="block">
         {item.anime.coverImageUrl ? (
           <img
-            src={item.anime.coverImageUrl}
+            src={coverUrl(item.anime.coverImageUrl)}
             alt=""
             className="elev aspect-[2/3] w-full rounded-lg object-cover transition-transform group-hover:scale-[1.02]"
           />

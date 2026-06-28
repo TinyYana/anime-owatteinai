@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, coverUrl } from "../lib/api";
 import { Button, Field, Input, ErrorText } from "../components/ui";
 import type { Anime, AnimeSearchCandidate, AnimeSearchResult, WatchStatus } from "../../shared/types";
 
@@ -176,7 +176,7 @@ export function AddAnimePage() {
                           <div className="mb-3 flex gap-4 rounded-xl border border-border/50 bg-panel/60 p-3.5">
                             {a.coverImageUrl && (
                               <img
-                                src={a.coverImageUrl}
+                                src={coverUrl(a.coverImageUrl)}
                                 alt=""
                                 className="h-20 w-[3.75rem] shrink-0 rounded-lg object-cover"
                               />
@@ -229,7 +229,7 @@ export function AddAnimePage() {
                       >
                         {c.coverImageUrl && (
                           <img
-                            src={c.coverImageUrl}
+                            src={coverUrl(c.coverImageUrl)}
                             alt=""
                             className="h-12 w-9 shrink-0 rounded-lg object-cover"
                           />
@@ -278,7 +278,7 @@ export function AddAnimePage() {
           <div className="flex gap-4 rounded-xl border border-border/70 bg-panel/90 p-4">
             {selected.coverImageUrl && (
               <img
-                src={selected.coverImageUrl}
+                src={coverUrl(selected.coverImageUrl)}
                 alt=""
                 className="h-24 w-[4.5rem] shrink-0 rounded-lg object-cover"
               />

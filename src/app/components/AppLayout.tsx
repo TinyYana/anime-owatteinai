@@ -1,6 +1,8 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { hasPermission, useAuth } from "../lib/auth";
 import { ThemeToggle } from "./ThemeToggle";
+import { api } from "../lib/api";
 
 const navItems = [
   { to: "/app", label: "接著看", end: true },
@@ -20,18 +22,27 @@ const navLink = (active: boolean, admin = false) =>
 
 export function AppLayout() {
   const { me } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
   const canReviewApplications = hasPermission(me, "applications.review");
   const canOpenAdmin = hasPermission(me, "admin.access");
+
+  useEffect(() => {
+    api
+      .get<{ unreadCount: number }>("/api/my/notifications?limit=1")
+      .then((data) => setUnreadCount(data.unreadCount))
+      .catch(() => setUnreadCount(0));
+  }, []);
 
   return (
     <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col px-4">
       <header className="sticky top-0 z-20 -mx-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/50 bg-ink/70 px-4 py-4 backdrop-blur-md">
-        <Link to="/app" className="group relative flex items-baseline gap-2">
+        <Link to="/app" className="group relative flex items-center gap-2">
           <span className="higanbana -left-3 -top-2 h-9 w-9 transition-opacity group-hover:opacity-25" aria-hidden="true" />
-          <span className="relative text-sm font-semibold tracking-tight text-accent">
-            AnimeOwatteiNai
-          </span>
-          <span className="section-label">追番進行式</span>
+          <img
+            src="/追番進行式_LOGO_NoBG.png"
+            alt="追番進行式"
+            className="relative h-7 w-auto"
+          />
         </Link>
         <nav className="flex items-center gap-0.5 text-sm">
           {navItems.map((item) => (
@@ -39,6 +50,9 @@ export function AppLayout() {
               {item.label}
             </NavLink>
           ))}
+          <NavLink to="/app/notifications" className={({ isActive }) => navLink(isActive)}>
+            通知{unreadCount > 0 ? ` ${unreadCount}` : ""}
+          </NavLink>
           {(canReviewApplications || canOpenAdmin) && (
             <>
               {canReviewApplications && (

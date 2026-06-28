@@ -14,7 +14,10 @@ import { requireAuth, requireAdmin, requirePermission } from "../middleware/auth
 import { parseBody } from "../util";
 import { reviewAnimeEditRequestSchema } from "../../shared/validators";
 import { audit } from "../lib/audit";
+import { recordActivityEvent } from "../lib/activity";
+import { createNotification } from "../lib/notifications";
 import { registerSlashCommands } from "../lib/discord";
+import { fetchAniListCovers } from "../lib/metadata";
 import { z } from "zod";
 import type { AppEnv } from "../env";
 import {
@@ -298,6 +301,14 @@ adminPanelRoutes.delete("/anime/:id/alias", requirePermission("anime.manage", "F
     targetId: row.id,
     metadata: { removedAlias: body.alias },
   });
+  void recordActivityEvent(db, {
+    actorUserId: c.get("user").id,
+    eventType: "anime.alias_removed",
+    targetType: "anime",
+    targetId: row.id,
+    visibility: "system",
+    metadata: { removedAlias: body.alias },
+  });
 
   return c.json(updated);
 });
@@ -398,6 +409,23 @@ adminPanelRoutes.post("/anime/:id/merge", requirePermission("anime.manage", "FOR
     targetId,
     metadata: { sourceId, sourceTitle: source.title, targetTitle: target.title },
   });
+  void recordActivityEvent(db, {
+    actorUserId: c.get("user").id,
+    eventType: "anime.merged",
+    targetType: "anime",
+    targetId,
+    visibility: "system",
+    metadata: { sourceId, sourceTitle: source.title, targetTitle: target.title },
+  });
+  await Promise.all(sourceTracking.map((row) =>
+    createNotification(db, {
+      userId: row.userId,
+      type: "anime_merged",
+      title: "作品資料已合併",
+      body: `「${source.title}」已合併到「${target.title}」。你的追番紀錄會保留。`,
+      linkUrl: `/app/anime/${targetId}`,
+    }),
+  ));
 
   return c.json({ ok: true, merged });
 });
@@ -465,13 +493,21 @@ adminPanelRoutes.delete("/test/cleanup", async (c) => {
 
 // POST /api/admin/discord/register-commands — register slash commands with Discord
 adminPanelRoutes.post("/discord/register-commands", async (c) => {
-  const { DISCORD_CLIENT_ID, DISCORD_BOT_TOKEN } = c.env;
+  const { DISCORD_CLIENT_ID, DISCORD_BOT_TOKEN, DISCORD_GUILD_ID } = c.env;
   if (!DISCORD_CLIENT_ID || !DISCORD_BOT_TOKEN) {
     return c.json({ error: { code: "NOT_CONFIGURED", message: "DISCORD_CLIENT_ID / DISCORD_BOT_TOKEN 未設定" } }, 503);
   }
-  const result = await registerSlashCommands(DISCORD_CLIENT_ID, DISCORD_BOT_TOKEN);
-  if (!result.ok) return c.json({ error: { code: "DISCORD_ERROR", message: `Discord API 回應 ${result.status}` } }, 502);
-  return c.json({ ok: true });
+  const result = await registerSlashCommands(DISCORD_CLIENT_ID, DISCORD_BOT_TOKEN, DISCORD_GUILD_ID || undefined);
+  if (!result.ok) {
+    return c.json({
+      error: {
+        code: "DISCORD_ERROR",
+        message: `Discord API 回應 ${result.status}`,
+        details: result.body.slice(0, 500),
+      },
+    }, 502);
+  }
+  return c.json({ ok: true, scope: result.scope, status: result.status });
 });
 
 // GET /api/admin/discord/status — which Discord features are configured
@@ -503,4 +539,29 @@ adminPanelRoutes.get("/audit-logs", requirePermission("audit.view", "FORBIDDEN",
     .orderBy(desc(auditLogs.createdAt))
     .limit(200);
   return c.json(rows);
+});
+
+// POST /api/admin/panel/backfill/cover-images
+// Re-fetches extraLarge cover URLs from AniList for all anime that have an anilist ID stored.
+adminPanelRoutes.post("/backfill/cover-images", async (c) => {
+  const db = c.get("db");
+  const rows = await db
+    .select({ id: anime.id, anilistId: anime.externalAnilistId })
+    .from(anime)
+    .where(sql`${anime.externalAnilistId} IS NOT NULL`);
+
+  const anilistIds = rows.map((r) => r.anilistId!);
+  const covers = await fetchAniListCovers(anilistIds);
+
+  let updated = 0;
+  await Promise.all(
+    rows.map(async (row) => {
+      const url = covers.get(row.anilistId!);
+      if (!url) return;
+      await db.update(anime).set({ coverImageUrl: url }).where(eq(anime.id, row.id));
+      updated++;
+    }),
+  );
+
+  return c.json({ total: rows.length, updated });
 });

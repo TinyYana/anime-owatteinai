@@ -21,6 +21,21 @@ export type AnimePriority = "high" | "normal" | "low";
 export type ApplicationStatus = "pending" | "approved" | "rejected";
 
 export type MetadataSource = "manual" | "anilist" | "bangumi" | "jikan";
+export type ActivityVisibility = "system" | "private" | "community" | "public";
+export type NotificationType =
+  | "application_approved"
+  | "application_rejected"
+  | "announcement"
+  | "admin_notice"
+  | "anime_merged"
+  | "alias_removed"
+  | "note_removed"
+  | "system";
+export type AnnouncementLevel = "info" | "warning" | "critical";
+export type AnnouncementAudience = "all" | "member" | "admin";
+export type AnimeNoteType = "note" | "recommendation" | "episode_comment" | "question";
+export type SpoilerLevel = "none" | "minor" | "major";
+export type NoteVisibility = "private" | "community";
 
 export const USER_ROLES: readonly UserRole[] = ["owner", "admin", "moderator", "member", "pending", "banned"];
 export const ROLE_PERMISSIONS: readonly RolePermission[] = [
@@ -37,6 +52,22 @@ export const SOURCE_TYPES: readonly SourceType[] = ["official", "community_link"
 export const ANIME_PRIORITIES: readonly AnimePriority[] = ["high", "normal", "low"];
 export const APPLICATION_STATUSES: readonly ApplicationStatus[] = ["pending", "approved", "rejected"];
 export const METADATA_SOURCES: readonly MetadataSource[] = ["manual", "anilist", "bangumi", "jikan"];
+export const ACTIVITY_VISIBILITIES: readonly ActivityVisibility[] = ["system", "private", "community", "public"];
+export const NOTIFICATION_TYPES: readonly NotificationType[] = [
+  "application_approved",
+  "application_rejected",
+  "announcement",
+  "admin_notice",
+  "anime_merged",
+  "alias_removed",
+  "note_removed",
+  "system",
+];
+export const ANNOUNCEMENT_LEVELS: readonly AnnouncementLevel[] = ["info", "warning", "critical"];
+export const ANNOUNCEMENT_AUDIENCES: readonly AnnouncementAudience[] = ["all", "member", "admin"];
+export const ANIME_NOTE_TYPES: readonly AnimeNoteType[] = ["note", "recommendation", "episode_comment", "question"];
+export const SPOILER_LEVELS: readonly SpoilerLevel[] = ["none", "minor", "major"];
+export const NOTE_VISIBILITIES: readonly NoteVisibility[] = ["private", "community"];
 
 export const ROLE_PERMISSION_LABELS: Record<RolePermission, string> = {
   "app.access": "進入 App",
@@ -68,6 +99,12 @@ export interface MeResponse {
   role: UserRole;
   permissions: RolePermission[];
   lastLoginAt: string | null;
+}
+
+export interface NotificationSettings {
+  dailyDmEnabled: boolean;
+  dailyDmIncludeCommunity: boolean;
+  dailyDmLastSentAt: string | null;
 }
 
 export interface Anime {
@@ -201,4 +238,69 @@ export interface AnimeEditRequest {
 export interface RolePermissionConfig {
   role: UserRole;
   permissions: RolePermission[];
+}
+
+export interface ActivityEvent {
+  id: string;
+  actorUserId: string | null;
+  eventType: string;
+  targetType: string;
+  targetId: string | null;
+  visibility: ActivityVisibility;
+  metadataJson: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  linkUrl: string | null;
+  isRead: boolean;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface SiteAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  level: AnnouncementLevel;
+  audience: AnnouncementAudience;
+  isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnimeNote {
+  id: string;
+  animeId: string;
+  userId: string;
+  episodeNumber: number | null;
+  type: AnimeNoteType;
+  spoilerLevel: SpoilerLevel;
+  visibility: NoteVisibility;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  userName?: string | null;
+}
+
+export interface CommunitySummaryItem {
+  animeId: string;
+  title: string;
+  titleZh: string | null;
+  watchingCount: number;
+  recentProgressCount: number;
+  noteCount: number;
+}
+
+export interface CommunitySummary {
+  trendingAnime: CommunitySummaryItem[];
 }

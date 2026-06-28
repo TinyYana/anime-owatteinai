@@ -41,6 +41,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
+/** Upgrades old AniList medium cover URLs to large as a client-side fallback. Safe on non-AniList URLs. */
+export const coverUrl = (url: string | null | undefined): string | undefined =>
+  url?.replace(/\/medium\//i, "/large/") ?? undefined;
+
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),

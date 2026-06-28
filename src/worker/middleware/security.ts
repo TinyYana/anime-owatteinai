@@ -48,6 +48,7 @@ export const applyCorsAndSecurity = createMiddleware<AppEnv>(async (c, next) => 
   c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
   if (!isDev) {
+    c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     // ponytail: unsafe-inline for Tailwind v4 (uses style attributes); tighten when migrated off
     c.header(
       "Content-Security-Policy",
