@@ -3,9 +3,9 @@ import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { anime, animeNotes, users } from "../../db/schema";
 import { requireAuth, requireAppAccess } from "../middleware/auth";
 import { parseBody } from "../util";
-import { createAnimeNoteSchema, updateAnimeNoteSchema } from "../../shared/validators";
+import { createAnimeNoteSchema, deleteAnimeNoteSchema, updateAnimeNoteSchema } from "../../shared/validators";
 import { recordActivityEvent } from "../lib/activity";
-import { createNotification } from "../lib/notifications";
+import { createNotificationFromTemplate } from "../lib/notifications";
 import type { AppEnv } from "../env";
 import type { NoteVisibility } from "../../shared/types";
 
@@ -27,6 +27,8 @@ animeNoteRoutes.get("/anime/:id/notes", async (c) => {
       createdAt: animeNotes.createdAt,
       updatedAt: animeNotes.updatedAt,
       deletedAt: animeNotes.deletedAt,
+      deletedByUserId: animeNotes.deletedByUserId,
+      deleteReason: animeNotes.deleteReason,
       userName: users.discordGlobalName,
     })
     .from(animeNotes)
@@ -104,6 +106,10 @@ animeNoteRoutes.patch("/anime-notes/:id", async (c) => {
 animeNoteRoutes.delete("/anime-notes/:id", async (c) => {
   const db = c.get("db");
   const user = c.get("user");
+  const body = c.req.header("Content-Type")?.includes("application/json")
+    ? await parseBody(c, deleteAnimeNoteSchema)
+    : { deleteReason: null };
+  if (body instanceof Response) return body;
   const note = await db.query.animeNotes.findFirst({ where: eq(animeNotes.id, c.req.param("id")) });
   if (!note || note.deletedAt) return c.json({ error: { code: "NOT_FOUND", message: "Note not found" } }, 404);
 
@@ -115,17 +121,21 @@ animeNoteRoutes.delete("/anime-notes/:id", async (c) => {
 
   const [updated] = await db
     .update(animeNotes)
-    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .set({
+      deletedAt: new Date(),
+      deletedByUserId: user.id,
+      deleteReason: isOwner ? null : body.deleteReason ?? null,
+      updatedAt: new Date(),
+    })
     .where(eq(animeNotes.id, note.id))
     .returning();
 
   if (!isOwner) {
-    await createNotification(db, {
-      userId: note.userId,
-      type: "note_removed",
-      title: "你的短評已被管理員移除",
-      body: "這則花瓣短評已不再顯示。",
-      linkUrl: `/app/anime/${note.animeId}`,
+    const noteAnime = await db.query.anime.findFirst({ where: eq(anime.id, note.animeId) });
+    await createNotificationFromTemplate(db, note.userId, "note.removed", {
+      animeId: note.animeId,
+      animeTitle: noteAnime?.titleZh ?? noteAnime?.title,
+      noteReason: body.deleteReason,
     });
   }
 

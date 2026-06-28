@@ -153,6 +153,7 @@ export interface AnimeSearchCandidate {
   format?: string;
   statusExternal?: string;
   coverImageUrl?: string;
+  description?: string;
   source: "anilist" | "bangumi" | "jikan";
 }
 
@@ -210,6 +211,7 @@ export interface AccessApplication {
   message: string | null;
   reviewedByUserId: string | null;
   reviewedAt: string | null;
+  reviewReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -228,6 +230,7 @@ export interface AnimeEditRequest {
   note: string | null;
   reviewedByUserId: string | null;
   reviewedAt: string | null;
+  reviewReason: string | null;
   createdAt: string;
   updatedAt: string;
   animeTitle: string | null;
@@ -289,6 +292,8 @@ export interface AnimeNote {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  deletedByUserId: string | null;
+  deleteReason: string | null;
   userName?: string | null;
 }
 

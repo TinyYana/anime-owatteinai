@@ -612,8 +612,8 @@ function AnimeNotesSection({ animeId, isAdmin }: { animeId: string; isAdmin: boo
     }
   }
 
-  async function remove(id: string) {
-    await api.del(`/api/anime-notes/${id}`);
+  async function remove(id: string, deleteReason?: string | null) {
+    await api.del(`/api/anime-notes/${id}`, deleteReason?.trim() ? { deleteReason } : undefined);
     load();
   }
 
@@ -670,9 +670,19 @@ function NoteList({
 }: {
   title: string;
   items: AnimeNote[];
-  onRemove: (id: string) => void;
+  onRemove: (id: string, deleteReason?: string | null) => void;
   canModerate: boolean;
 }) {
+  function remove(noteId: string) {
+    if (!canModerate) {
+      onRemove(noteId);
+      return;
+    }
+    const reason = window.prompt("給短評作者的移除原因（選填）");
+    if (reason === null) return;
+    onRemove(noteId, reason);
+  }
+
   return (
     <section>
       <p className="section-label mb-2">{title} · {items.length}</p>
@@ -688,7 +698,7 @@ function NoteList({
                 <span>{spoilerLabel[note.spoilerLevel]}</span>
                 {note.userName && <span>{note.userName}</span>}
                 {(canModerate || title === "我的短評") && (
-                  <button onClick={() => onRemove(note.id)} className="ml-auto text-accent">刪除</button>
+                  <button onClick={() => remove(note.id)} className="ml-auto text-accent">刪除</button>
                 )}
               </div>
               {note.spoilerLevel === "none" ? (

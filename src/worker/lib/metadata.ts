@@ -15,6 +15,7 @@ query ($search: String) {
     media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
       id idMal
       title { romaji english native }
+      description(asHtml: false)
       synonyms
       episodes status season seasonYear format
       coverImage { extraLarge }
@@ -28,6 +29,7 @@ interface AniListMedia {
   id: number;
   idMal: number | null;
   title: { romaji: string | null; english: string | null; native: string | null };
+  description: string | null;
   synonyms: string[];
   episodes: number | null;
   status: string | null;
@@ -43,6 +45,7 @@ interface BangumiSubject {
   id: number;
   name: string;
   name_cn: string;
+  summary?: string;
 }
 interface BangumiSearchResponse {
   data?: BangumiSubject[];
@@ -53,6 +56,7 @@ interface JikanAnime {
   title: string;
   title_english: string | null;
   title_japanese: string | null;
+  synopsis: string | null;
   episodes: number | null;
   status: string | null;
   season: string | null;
@@ -141,6 +145,16 @@ function extractChineseFromSynonyms(synonyms: string[]): string | undefined {
   });
 }
 
+function cleanDescription(value: string | null | undefined): string | undefined {
+  const text = value
+    ?.replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return text ? text.slice(0, 5000) : undefined;
+}
+
 // --- Normalizers ---
 
 function normalizeAniList(m: AniListMedia): AnimeSearchCandidate {
@@ -160,6 +174,7 @@ function normalizeAniList(m: AniListMedia): AnimeSearchCandidate {
     format: m.format ?? undefined,
     statusExternal: m.status ?? undefined,
     coverImageUrl: m.coverImage.extraLarge ?? undefined,
+    description: cleanDescription(m.description),
     source: "anilist",
   };
 }
@@ -170,6 +185,7 @@ function normalizeBangumi(s: BangumiSubject): AnimeSearchCandidate {
     title: s.name_cn || s.name,
     titleNative: s.name || undefined,
     titleZh: s.name_cn || undefined,
+    description: cleanDescription(s.summary),
     source: "bangumi",
   };
 }
@@ -187,6 +203,7 @@ function normalizeJikan(a: JikanAnime): AnimeSearchCandidate {
     format: a.type ?? undefined,
     statusExternal: a.status ?? undefined,
     coverImageUrl: a.images?.jpg?.image_url ?? undefined,
+    description: cleanDescription(a.synopsis),
     source: "jikan",
   };
 }

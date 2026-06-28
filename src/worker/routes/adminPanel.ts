@@ -15,7 +15,7 @@ import { parseBody } from "../util";
 import { reviewAnimeEditRequestSchema } from "../../shared/validators";
 import { audit } from "../lib/audit";
 import { recordActivityEvent } from "../lib/activity";
-import { createNotification } from "../lib/notifications";
+import { createNotificationFromTemplate } from "../lib/notifications";
 import { registerSlashCommands } from "../lib/discord";
 import { fetchAniListCovers } from "../lib/metadata";
 import { z } from "zod";
@@ -199,6 +199,7 @@ adminPanelRoutes.get("/edit-requests", async (c) => {
         note: animeEditRequests.note,
         reviewedByUserId: animeEditRequests.reviewedByUserId,
         reviewedAt: animeEditRequests.reviewedAt,
+        reviewReason: animeEditRequests.reviewReason,
         createdAt: animeEditRequests.createdAt,
         updatedAt: animeEditRequests.updatedAt,
         animeTitle: anime.titleZh,
@@ -235,6 +236,7 @@ adminPanelRoutes.post("/edit-requests/:id/review", requirePermission("anime.mana
       .set({ ...request.payload, updatedAt: new Date() })
       .where(eq(anime.id, request.animeId));
   }
+  const reviewedAnime = await db.query.anime.findFirst({ where: eq(anime.id, request.animeId) });
 
   const [updated] = await db
     .update(animeEditRequests)
@@ -242,10 +244,21 @@ adminPanelRoutes.post("/edit-requests/:id/review", requirePermission("anime.mana
       status: body.action === "approve" ? "approved" : "rejected",
       reviewedByUserId: c.get("user").id,
       reviewedAt: new Date(),
+      reviewReason: body.reviewReason ?? null,
       updatedAt: new Date(),
     })
     .where(eq(animeEditRequests.id, request.id))
     .returning();
+  void createNotificationFromTemplate(
+    db,
+    request.userId,
+    body.action === "approve" ? "animeEdit.approved" : "animeEdit.rejected",
+    {
+      animeId: request.animeId,
+      animeTitle: reviewedAnime?.titleZh ?? reviewedAnime?.title,
+      reviewReason: body.reviewReason,
+    },
+  );
   return c.json(updated);
 });
 
@@ -418,12 +431,10 @@ adminPanelRoutes.post("/anime/:id/merge", requirePermission("anime.manage", "FOR
     metadata: { sourceId, sourceTitle: source.title, targetTitle: target.title },
   });
   await Promise.all(sourceTracking.map((row) =>
-    createNotification(db, {
-      userId: row.userId,
-      type: "anime_merged",
-      title: "作品資料已合併",
-      body: `「${source.title}」已合併到「${target.title}」。你的追番紀錄會保留。`,
-      linkUrl: `/app/anime/${targetId}`,
+    createNotificationFromTemplate(db, row.userId, "anime.merged", {
+      sourceTitle: source.title,
+      targetId,
+      targetTitle: target.title,
     }),
   ));
 

@@ -5,10 +5,11 @@ import { accessApplications, users } from "../../db/schema";
 import { requireAuth, requirePermission } from "../middleware/auth";
 import { rateLimit } from "../middleware/rateLimit";
 import { parseBody } from "../util";
-import { createApplicationSchema } from "../../shared/validators";
+import { createApplicationSchema, reviewApplicationSchema } from "../../shared/validators";
 import { audit } from "../lib/audit";
 import { recordActivityEvent } from "../lib/activity";
-import { createNotification } from "../lib/notifications";
+import { createNotificationFromTemplate } from "../lib/notifications";
+import { applicationReviewDmTemplate } from "../lib/notificationTemplates";
 import { sendDM } from "../lib/discord";
 import type { AppEnv } from "../env";
 
@@ -94,6 +95,7 @@ adminApplicationRoutes.get("/", async (c) => {
       message: accessApplications.message,
       reviewedByUserId: accessApplications.reviewedByUserId,
       reviewedAt: accessApplications.reviewedAt,
+      reviewReason: accessApplications.reviewReason,
       createdAt: accessApplications.createdAt,
       updatedAt: accessApplications.updatedAt,
       user: {
@@ -113,6 +115,10 @@ adminApplicationRoutes.get("/", async (c) => {
 });
 
 async function review(c: Context<AppEnv>, status: "approved" | "rejected") {
+  const body = c.req.header("Content-Type")?.includes("application/json")
+    ? await parseBody(c, reviewApplicationSchema)
+    : { reviewReason: null };
+  if (body instanceof Response) return body;
   const id = c.req.param("id");
   if (!id) return c.json({ error: { code: "NOT_FOUND", message: "Not found" } }, 404);
   const db = c.get("db");
@@ -132,6 +138,7 @@ async function review(c: Context<AppEnv>, status: "approved" | "rejected") {
       status,
       reviewedByUserId: reviewer.id,
       reviewedAt: new Date(),
+      reviewReason: body.reviewReason ?? null,
       updatedAt: new Date(),
     })
     .where(eq(accessApplications.id, id));
@@ -159,23 +166,18 @@ async function review(c: Context<AppEnv>, status: "approved" | "rejected") {
     metadata: { applicantUserId: app.userId },
   });
 
-  void createNotification(db, {
-    userId: app.userId,
-    type: status === "approved" ? "application_approved" : "application_rejected",
-    title: status === "approved" ? "申請已通過" : "申請未通過",
-    body: status === "approved" ? "歡迎加入追番進行式。" : "如果有疑問，可以再聯繫管理員。",
-    linkUrl: status === "approved" ? "/app" : "/apply",
-  });
+  const templateKey = status === "approved" ? "application.approved" : "application.rejected";
+  void createNotificationFromTemplate(db, app.userId, templateKey, { reviewReason: body.reviewReason });
 
   // DM the applicant — fire-and-forget, never block the response
   if (c.env.DISCORD_BOT_TOKEN) {
     const applicant = await db.query.users.findFirst({ where: eq(users.id, app.userId) });
     if (applicant) {
-      const msg =
-        status === "approved"
-          ? `✅ 你的追番進行式申請已通過！歡迎加入，馬上登入開始追番：${c.env.APP_BASE_URL}/app`
-          : `❌ 你的追番進行式申請未通過。有問題請聯繫管理員。`;
-      void sendDM(c.env.DISCORD_BOT_TOKEN, applicant.discordId, msg);
+      void sendDM(
+        c.env.DISCORD_BOT_TOKEN,
+        applicant.discordId,
+        applicationReviewDmTemplate(templateKey, c.env.APP_BASE_URL, { reviewReason: body.reviewReason }),
+      );
     }
   }
 

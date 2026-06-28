@@ -14,7 +14,7 @@ const levelClass: Record<AnnouncementLevel, string> = {
   critical: "border-accent/60 text-accent",
 };
 
-export function AnnouncementStrip({ limit = 3 }: { limit?: number }) {
+export function AnnouncementStrip({ limit = 3 }: Readonly<{ limit?: number }>) {
   const [items, setItems] = useState<SiteAnnouncement[]>([]);
 
   useEffect(() => {

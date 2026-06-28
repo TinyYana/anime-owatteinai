@@ -236,6 +236,8 @@ export const animeNotes = appSchema.table(
     visibility: noteVisibilityEnum("visibility").notNull().default("private"),
     content: text("content").notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedByUserId: uuid("deleted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    deleteReason: text("delete_reason"),
     ...timestamps,
   },
   (t) => [
@@ -254,6 +256,7 @@ export const accessApplications = appSchema.table(
     message: text("message"),
     reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, { onDelete: "set null" }),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
     ...timestamps,
   },
   (t) => [
@@ -280,6 +283,7 @@ export const animeEditRequests = appSchema.table(
     note: text("note"),
     reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, { onDelete: "set null" }),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
     ...timestamps,
   },
   (t) => [

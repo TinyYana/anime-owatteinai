@@ -77,6 +77,11 @@ export const createAnimeEditRequestSchema = z.object({
 
 export const reviewAnimeEditRequestSchema = z.object({
   action: z.enum(["approve", "reject"]),
+  reviewReason: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const reviewApplicationSchema = z.object({
+  reviewReason: z.string().trim().max(1000).optional().nullable(),
 });
 
 // --- My anime (user_anime) ---
@@ -173,6 +178,10 @@ export const updateAnimeNoteSchema = createAnimeNoteSchema.partial().refine(
   { message: "No fields to update" },
 );
 
+export const deleteAnimeNoteSchema = z.object({
+  deleteReason: z.string().trim().max(1000).optional().nullable(),
+});
+
 // --- Anime import (from external search) ---
 export const importAnimeSchema = z.object({
   externalAnilistId: z.number().int().positive().optional(),
@@ -212,6 +221,7 @@ export type CreateAnnouncementInput = z.infer<typeof createAnnouncementSchema>;
 export type UpdateAnnouncementInput = z.infer<typeof updateAnnouncementSchema>;
 export type CreateAnimeNoteInput = z.infer<typeof createAnimeNoteSchema>;
 export type UpdateAnimeNoteInput = z.infer<typeof updateAnimeNoteSchema>;
+export type DeleteAnimeNoteInput = z.infer<typeof deleteAnimeNoteSchema>;
 
 // --- Safe external URL validation ---
 // Used wherever we accept a user-supplied URL that will only be stored (never fetched).

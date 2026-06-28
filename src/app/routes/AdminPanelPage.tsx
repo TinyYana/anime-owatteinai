@@ -91,6 +91,7 @@ export function AdminPanelPage() {
   const [backfillResult, setBackfillResult] = useState<string | null>(null);
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null);
   const [announcementError, setAnnouncementError] = useState<string | null>(null);
+  const [editReviewReasons, setEditReviewReasons] = useState<Record<string, string>>({});
   const [announcementForm, setAnnouncementForm] = useState({
     title: "",
     content: "",
@@ -187,10 +188,18 @@ export function AdminPanelPage() {
   async function reviewEdit(id: string, action: "approve" | "reject") {
     setBusyId(id);
     try {
-      await api.post(`/api/admin/panel/edit-requests/${id}/review`, { action });
+      const reviewReason = editReviewReasons[id]?.trim() || null;
+      await api.post(`/api/admin/panel/edit-requests/${id}/review`, { action, reviewReason });
       setEditRequests((prev) =>
-        prev?.map((r) => (r.id === id ? { ...r, status: action === "approve" ? "approved" : "rejected" } : r)) ?? prev,
+        prev?.map((r) => (
+          r.id === id ? { ...r, status: action === "approve" ? "approved" : "rejected", reviewReason } : r
+        )) ?? prev,
       );
+      setEditReviewReasons((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     } finally {
       setBusyId(null);
     }
@@ -469,12 +478,21 @@ export function AdminPanelPage() {
                     ))}
                   </dl>
                   {r.note && <p className="text-sm text-muted">備註：{r.note}</p>}
+                  {r.reviewReason && <p className="text-sm text-muted">審核補充：{r.reviewReason}</p>}
 
                   {r.status === "pending" && (
-                    <div className="flex gap-2">
-                      <Button disabled={busyId === r.id} onClick={() => reviewEdit(r.id, "approve")}>通過並更新</Button>
-                      <Button variant="danger" disabled={busyId === r.id} onClick={() => reviewEdit(r.id, "reject")}>拒絕</Button>
-                    </div>
+                    <>
+                      <Textarea
+                        value={editReviewReasons[r.id] ?? ""}
+                        onChange={(e) => setEditReviewReasons((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                        placeholder="給提案者的審核補充（選填）"
+                        maxLength={1000}
+                      />
+                      <div className="flex gap-2">
+                        <Button disabled={busyId === r.id} onClick={() => reviewEdit(r.id, "approve")}>通過並更新</Button>
+                        <Button variant="danger" disabled={busyId === r.id} onClick={() => reviewEdit(r.id, "reject")}>拒絕</Button>
+                      </div>
+                    </>
                   )}
                 </Panel>
               ))}

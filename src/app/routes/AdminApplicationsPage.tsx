@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { Panel, Button, Badge, Loading } from "../components/ui";
+import { Panel, Button, Badge, Loading, Textarea } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import type { AccessApplicationWithUser } from "../../shared/types";
 
 export function AdminApplicationsPage() {
   const [apps, setApps] = useState<AccessApplicationWithUser[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [reviewReasons, setReviewReasons] = useState<Record<string, string>>({});
 
   function load() {
     api.get<AccessApplicationWithUser[]>("/api/admin/applications").then(setApps).catch(() => setApps([]));
@@ -16,8 +17,14 @@ export function AdminApplicationsPage() {
   async function review(id: string, action: "approve" | "reject") {
     setBusyId(id);
     try {
-      await api.post(`/api/admin/applications/${id}/${action}`);
+      const reviewReason = reviewReasons[id]?.trim() || null;
+      await api.post(`/api/admin/applications/${id}/${action}`, { reviewReason });
       setApps((prev) => prev?.filter((a) => a.id !== id) ?? prev);
+      setReviewReasons((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     } finally {
       setBusyId(null);
     }
@@ -53,6 +60,13 @@ export function AdminApplicationsPage() {
               {app.message && (
                 <p className="border-l-2 border-border pl-3 text-sm text-muted">「{app.message}」</p>
               )}
+
+              <Textarea
+                value={reviewReasons[app.id] ?? ""}
+                onChange={(e) => setReviewReasons((prev) => ({ ...prev, [app.id]: e.target.value }))}
+                placeholder="給申請者的審核補充（選填）"
+                maxLength={1000}
+              />
 
               <div className="flex gap-2">
                 <Button onClick={() => review(app.id, "approve")} disabled={busyId === app.id}>
