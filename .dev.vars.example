@@ -1,0 +1,20 @@
+# Local runtime secrets for `wrangler dev`. Copy to `.dev.vars` (gitignored) and fill in.
+# Non-secret vars (APP_BASE_URL, DISCORD_REDIRECT_URI, ADMIN_DISCORD_IDS, DISCORD_GUILD_ID) live in wrangler.jsonc,
+# but you can override them here for local dev too.
+DATABASE_URL=
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+DISCORD_REDIRECT_URI=http://localhost:8787/api/auth/discord/callback
+SESSION_SECRET=
+ADMIN_DISCORD_IDS=
+APP_BASE_URL=http://localhost:8787
+# Guild gate secrets — leave blank to disable membership check.
+# DISCORD_GUILD_ID can also go in wrangler.jsonc (non-secret).
+DISCORD_GUILD_ID=
+# Bot token from Discord Developer Portal → Bot → Token. Bot must be in the guild.
+DISCORD_BOT_TOKEN=
+# Discord Interactions endpoint public key (Developer Portal → App → General Information → Public Key)
+# Non-secret but listed here for convenience; also goes in wrangler.jsonc vars for production.
+DISCORD_PUBLIC_KEY=
+# Text channel ID to post daily community summaries. Non-secret; can go in wrangler.jsonc.
+DISCORD_NOTIFICATION_CHANNEL_ID=

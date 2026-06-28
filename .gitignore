@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.local
+.dev.vars
+.wrangler/
+*.log
+.DS_Store
+env.txt
+.pnpm-store
+# 計劃文件不上傳
+docs/PROJECT_PLAN.md
+docs/security-test-checklist.md
+HANDOFF.md

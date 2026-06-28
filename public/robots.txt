@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /$
+Allow: /terms$
+Disallow: /app/
+Disallow: /api/
+Disallow: /apply/

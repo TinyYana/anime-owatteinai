@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1782558109941,
+      "tag": "0000_gray_magneto",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782560288079,
+      "tag": "0001_normal_jack_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782576952853,
+      "tag": "0002_cooing_invisible_woman",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782662400000,
+      "tag": "0003_security_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782663300000,
+      "tag": "0004_role_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782777600000,
+      "tag": "0005_guild_check_test_users",
+      "breakpoints": true
+    }
+  ]
+}

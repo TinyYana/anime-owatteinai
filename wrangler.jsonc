@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "anime-owatteinai",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2024-12-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    // Built by `pnpm build` (vite). Run `pnpm build` before `pnpm dev` so assets exist.
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "observability": {
+    "enabled": true
+  },
+  // KV namespace for caching external metadata (AniList / Bangumi / Jikan) responses.
+  // To create for production: `wrangler kv namespace create METADATA_CACHE`
+  // Then replace the id below with the output.
+  // For local dev (`wrangler dev`), wrangler uses a local KV store automatically.
+  "kv_namespaces": [
+    {
+      "binding": "METADATA_CACHE",
+      "id": "00000000000000000000000000000000",
+      "preview_id": "00000000000000000000000000000000"
+    }
+  ],
+  // Non-secret config. Secrets (DATABASE_URL, DISCORD_CLIENT_SECRET, SESSION_SECRET, DISCORD_BOT_TOKEN)
+  // go in .dev.vars locally and `wrangler secret put` in production.
+  "vars": {
+    "APP_BASE_URL": "http://localhost:8787",
+    "DISCORD_REDIRECT_URI": "http://localhost:8787/api/auth/discord/callback",
+    "ADMIN_DISCORD_IDS": "291505609289891840",
+    // Guild ID of the 彼岸花 Discord server. Leave empty to disable the membership gate.
+    "DISCORD_GUILD_ID": "859081101859094589",
+    // Non-secret Discord config for bot features. Leave blank to disable.
+    // DISCORD_PUBLIC_KEY: Discord Developer Portal → App → General Information → Public Key
+    "DISCORD_PUBLIC_KEY": "",
+    // Text channel ID where daily community summaries are posted.
+    "DISCORD_NOTIFICATION_CHANNEL_ID": ""
+  },
+  // Cron triggers:
+  //   0 * * * *  — hourly guild membership audit
+  //   0 9 * * *  — daily 09:00 UTC community summary posted to Discord
+  "triggers": {
+    "crons": ["0 * * * *", "0 9 * * *"]
+  }
+}

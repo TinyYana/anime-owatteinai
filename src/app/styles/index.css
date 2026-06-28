@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+/*
+  追番進行式 — 輕百合・日常向
+  Warm purple-rose palette. Cozy study room at night / after-school café vibes.
+  Dark = midnight lavender. Light = sakura parchment.
+  Motion personality: calm/premium base, light playful feedback.
+*/
+@theme {
+  --color-ink: #0d0b14;
+  --color-surface: #161224;
+  --color-panel: #1c1829;
+  --color-border: #2c2540;
+  --color-muted: #9586b0;
+  --color-text: #ede8f4;
+  --color-accent: #e8699a;
+  --color-accent-soft: #521832;
+  --color-signal: #70cbb8;
+
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Cascadia Code",
+    Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+  /* Elevation — theme-aware soft shadow (not the utility, so it follows data-theme) */
+  --elev-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -16px rgb(0 0 0 / 0.55);
+  --elev-lift: 0 2px 4px rgb(0 0 0 / 0.3), 0 18px 44px -18px rgb(232 105 154 / 0.28);
+  --glow-color: rgba(232, 105, 154, 0.09);
+  --glow-signal: rgba(112, 203, 184, 0.06);
+}
+
+/* ─── Light mode (sakura daylight) ───────────────────────── */
+[data-theme="light"] {
+  --color-ink: #fef7fa;
+  --color-surface: #f5eaf4;
+  --color-panel: #ece0ee;
+  --color-border: #d5c0e0;
+  --color-muted: #7a6090;
+  --color-text: #1a1028;
+  --color-accent: #c44072;
+  --color-accent-soft: #fbd8e8;
+  --color-signal: #2e9080;
+  color-scheme: light;
+
+  --elev-soft: 0 1px 2px rgb(120 80 110 / 0.08), 0 10px 30px -18px rgb(120 80 110 / 0.3);
+  --elev-lift: 0 2px 6px rgb(120 80 110 / 0.1), 0 18px 44px -20px rgb(196 64 114 / 0.28);
+  --glow-color: rgba(196, 64, 114, 0.05);
+  --glow-signal: rgba(46, 144, 128, 0.04);
+}
+
+/* ─── Base ────────────────────────────────────────────────── */
+html {
+  font-size: 106.25%; /* 17px — slightly larger base for comfort */
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-ink);
+  color: var(--color-text);
+  font-family: ui-sans-serif, system-ui, "Hiragino Sans", "Noto Sans TC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.7;
+}
+
+/* Ambient warm glow — two soft light sources, drifts slowly at rest */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60% 50% at 18% -8%, var(--glow-color), transparent 60%),
+    radial-gradient(55% 45% at 88% 8%, var(--glow-signal), transparent 60%);
+  animation: aurora-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift {
+  from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  to   { transform: translate3d(2%, 1.5%, 0) scale(1.06); }
+}
+
+/* ─── Focus ───────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Elevation ───────────────────────────────────────────── */
+.elev {
+  box-shadow: var(--elev-soft);
+}
+.elev-hover {
+  transition: box-shadow 0.32s ease, border-color 0.32s ease, transform 0.32s ease;
+}
+.elev-hover:hover {
+  box-shadow: var(--elev-lift);
+}
+
+/* ─── Spider-lily (彼岸花) corner motif ───────────────────────
+   Project signature: a soft six-petal bloom drawn with conic + radial
+   gradients. Used as a faint backdrop accent, never as content. */
+.higanbana {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  background:
+    conic-gradient(
+      from 0deg,
+      transparent 0deg 18deg,
+      var(--color-accent) 22deg 38deg,
+      transparent 42deg 60deg,
+      var(--color-accent) 64deg 80deg,
+      transparent 84deg 102deg,
+      var(--color-accent) 106deg 122deg,
+      transparent 126deg 144deg,
+      var(--color-accent) 148deg 164deg,
+      transparent 168deg 186deg,
+      var(--color-accent) 190deg 206deg,
+      transparent 210deg 228deg,
+      var(--color-accent) 232deg 248deg,
+      transparent 252deg 360deg
+    );
+  mask: radial-gradient(closest-side, transparent 20%, #000 34%, #000 80%, transparent 100%);
+  -webkit-mask: radial-gradient(closest-side, transparent 20%, #000 34%, #000 80%, transparent 100%);
+  opacity: 0.12;
+  filter: blur(0.4px);
+}
+
+/* ─── Utilities ───────────────────────────────────────────── */
+
+/* Technical metadata labels (episode #, dates, IDs) — keep mono but softer */
+.kbd-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+}
+
+/* Warm section labels — replaces the terminal // comment style */
+.section-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--color-muted);
+}
+
+/* Progress rail — the product's signature "看到哪" marker */
+.rail {
+  height: 4px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--color-border) 70%, transparent);
+  overflow: hidden;
+}
+.rail > span {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--color-signal), var(--color-accent));
+}
+
+/* ─── Reduced motion ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

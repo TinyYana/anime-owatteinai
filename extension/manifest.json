@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "追番進行式",
+  "version": "0.1.0",
+  "description": "自動偵測動畫瘋、anime1 觀看進度，同步到追番進行式。",
+  "permissions": ["cookies", "storage"],
+  "host_permissions": ["http://localhost:8787/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://ani.gamer.com.tw/animeVideo.php*"],
+      "js": ["content/widget.js", "content/anigamer.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://anime1.me/*"],
+      "js": ["content/widget.js", "content/anime1.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_title": "追番進行式"
+  },
+  "options_page": "options/index.html"
+}

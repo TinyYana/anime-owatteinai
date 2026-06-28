@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>追番進行式 · 設定</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d0b14;
+      color: #f0ebf5;
+      font-family: -apple-system, "Noto Sans TC", sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      padding: 40px 32px;
+      max-width: 520px;
+    }
+    h1 { color: #e8699a; font-size: 18px; margin-bottom: 4px; }
+    .sub { color: #9d8faf; font-size: 12px; margin-bottom: 32px; }
+    label { display: block; color: #9d8faf; font-size: 12px; letter-spacing: .05em; margin-bottom: 6px; }
+    input[type="text"], select {
+      width: 100%;
+      background: #1a1624;
+      border: 1px solid #e8699a30;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #f0ebf5;
+      font-size: 13px;
+      margin-bottom: 20px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input[type="text"]:focus, select:focus { border-color: #e8699a80; }
+    button {
+      background: #e8699a;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s;
+      margin-right: 8px;
+    }
+    button:hover { background: #d45588; }
+    button.secondary {
+      background: #1a1624;
+      color: #c5b8d8;
+      border: 1px solid #e8699a30;
+    }
+    button.secondary:hover { border-color: #e8699a60; color: #e8699a; background: #251f34; }
+    #result {
+      margin-top: 16px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      display: none;
+    }
+    #result.ok { background: #70cbb820; color: #70cbb8; border: 1px solid #70cbb840; }
+    #result.err { background: #e8699a20; color: #e8699a; border: 1px solid #e8699a40; }
+    .note {
+      margin-top: 24px;
+      padding: 12px 14px;
+      background: #1a1624;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #9d8faf;
+      line-height: 1.8;
+    }
+    .note strong { color: #c5b8d8; }
+  </style>
+</head>
+<body>
+  <h1>追番進行式 Extension 設定</h1>
+  <p class="sub">設定 API 來源，讓插件能連到你的追番進行式伺服器。</p>
+
+  <label>API 網址</label>
+  <input type="text" id="api-base" placeholder="http://localhost:8787" />
+
+  <label>預設追番順序</label>
+  <select id="default-priority">
+    <option value="high">優先追</option>
+    <option value="normal">一般</option>
+    <option value="low">之後再看</option>
+  </select>
+
+  <label>插件字體大小</label>
+  <select id="widget-size">
+    <option value="normal">正常</option>
+    <option value="large">大字版</option>
+  </select>
+
+  <div>
+    <button id="save">儲存</button>
+    <button class="secondary" id="test">測試連線</button>
+  </div>
+
+  <div id="result"></div>
+
+  <div class="note">
+    <strong>怎麼填：</strong><br />
+    本地開發：<code>http://localhost:8787</code><br />
+    正式部署：填你的 Workers 網址（例如 <code>https://aon.workers.dev</code>）<br /><br />
+    <strong>驗證方式：</strong><br />
+    Extension 使用你瀏覽器中儲存的 <code>aon_session</code> cookie 進行驗證。<br />
+    請先在追番進行式網站完成 Discord 登入，再點「測試連線」。
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

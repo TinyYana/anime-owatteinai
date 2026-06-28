@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>追番進行式</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 280px;
+      background: #0d0b14;
+      color: #f0ebf5;
+      font-family: -apple-system, "Noto Sans TC", sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid #e8699a20;
+      padding-bottom: 12px;
+    }
+    .wordmark { color: #e8699a; font-size: 13px; font-weight: 600; }
+    .subtitle { color: #9d8faf; font-size: 11px; letter-spacing: 0.04em; }
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #1a1624;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #70cbb8;
+      flex-shrink: 0;
+    }
+    .dot.err { background: #e8699a; }
+    .status-text { font-size: 12px; color: #c5b8d8; }
+    .user-name { font-size: 12px; font-weight: 600; color: #f0ebf5; }
+    .actions { display: flex; flex-direction: column; gap: 6px; }
+    a.action-btn {
+      display: block;
+      text-align: center;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #1a1624;
+      border: 1px solid #e8699a30;
+      color: #c5b8d8;
+      text-decoration: none;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+    a.action-btn:hover { background: #251f34; border-color: #e8699a60; color: #e8699a; }
+    .footer {
+      margin-top: 14px;
+      text-align: right;
+    }
+    .options-link { font-size: 11px; color: #9d8faf; text-decoration: none; }
+    .options-link:hover { color: #e8699a; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="wordmark">AnimeOwatteiNai</span>
+    <span class="subtitle">追番進行式</span>
+  </div>
+
+  <div class="status-row" id="status-row">
+    <span class="dot" id="status-dot"></span>
+    <div>
+      <div class="status-text" id="status-text">連線確認中…</div>
+      <div class="user-name" id="user-name"></div>
+    </div>
+  </div>
+
+  <div class="actions" id="actions" style="display:none">
+    <a class="action-btn" id="open-app">開啟追番進行式 ↗</a>
+    <a class="action-btn" id="open-my-anime">我的追番清單</a>
+    <a class="action-btn" id="open-dashboard">接著看 Dashboard</a>
+  </div>
+
+  <div class="footer">
+    <a class="options-link" id="options-link">設定 →</a>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>
