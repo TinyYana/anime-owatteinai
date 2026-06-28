@@ -128,7 +128,7 @@ export function AnimeDetailPage() {
           </div>
 
           <div data-reveal>
-            <SourceLinksSection animeId={id} links={links} canDelete={isAdmin} onChange={reloadLinks} />
+            <SourceLinksSection animeId={id} links={links} currentUserId={me?.id ?? null} isAdmin={isAdmin} onChange={reloadLinks} />
           </div>
 
           <div data-reveal>
@@ -419,17 +419,20 @@ function WatchLogSection({
 function SourceLinksSection({
   animeId,
   links,
-  canDelete,
+  currentUserId,
+  isAdmin,
   onChange,
 }: {
   animeId: string;
   links: SourceLink[];
-  canDelete: boolean;
+  currentUserId: string | null;
+  isAdmin: boolean;
   onChange: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ type: "community_link" as SourceType, label: "", url: "" });
   const [busy, setBusy] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function add(e: React.FormEvent) {
@@ -461,13 +464,31 @@ function SourceLinksSection({
     onChange();
   }
 
+  async function clearAll() {
+    if (!confirm("確定要清空這部動畫的所有觀看入口？")) return;
+    setClearing(true);
+    try {
+      await api.del(`/api/anime/${animeId}/source-links`);
+      onChange();
+    } finally {
+      setClearing(false);
+    }
+  }
+
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <SectionTitle label="觀看入口">在哪裡看</SectionTitle>
-        <Button variant="ghost" onClick={() => setOpen((o) => !o)}>
-          {open ? "收起" : "＋ 新增入口"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && links.length > 0 && (
+            <Button variant="ghost" onClick={clearAll} disabled={clearing} className="text-xs text-accent/70 hover:text-accent">
+              {clearing ? "清空中…" : "清空入口"}
+            </Button>
+          )}
+          <Button variant="ghost" onClick={() => setOpen((o) => !o)}>
+            {open ? "收起" : "＋ 新增入口"}
+          </Button>
+        </div>
       </div>
 
       {open && (
@@ -527,7 +548,7 @@ function SourceLinksSection({
                   {l.label}
                 </a>
               </div>
-              {canDelete && (
+              {(isAdmin || l.userId === currentUserId) && (
                 <button onClick={() => remove(l.id)} className="shrink-0 text-xs text-muted hover:text-accent">
                   刪除
                 </button>

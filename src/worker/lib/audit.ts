@@ -15,6 +15,7 @@ export type AuditAction =
   | "anime.merge"
   | "source_link.create"
   | "source_link.delete"
+  | "source_link.clear_all"
   | "alias.add"
   | "alias.delete"
   | "alias.merge";
