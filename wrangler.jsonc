@@ -33,8 +33,8 @@
 	// Non-secret config. Secrets (DATABASE_URL, DISCORD_CLIENT_SECRET, SESSION_SECRET, DISCORD_BOT_TOKEN)
 	// go in .dev.vars locally and `wrangler secret put` in production.
 	"vars": {
-		"APP_BASE_URL": "http://localhost:8787",
-		"DISCORD_REDIRECT_URI": "http://localhost:8787/api/auth/discord/callback",
+		"APP_BASE_URL": "https://aon.tinyyana.com",
+		"DISCORD_REDIRECT_URI": "https://aon.tinyyana.com/api/auth/discord/callback",
 		"ADMIN_DISCORD_IDS": "291505609289891840",
 		// Guild ID of the 彼岸花 Discord server. Leave empty to disable the membership gate.
 		"DISCORD_GUILD_ID": "859081101859094589",
