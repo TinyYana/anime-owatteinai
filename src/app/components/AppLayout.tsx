@@ -77,7 +77,25 @@ export function AppLayout() {
 
       <footer className="border-t border-border/50 py-5 flex items-center justify-between gap-4 flex-wrap">
         <p className="section-label">追番永遠追不完，所以讓系統記得你看到哪</p>
-        <a href="/terms" className="section-label transition-colors hover:text-text">服務條款</a>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <a href="/terms" className="section-label transition-colors hover:text-text">服務條款</a>
+          <a
+            href="https://github.com/TinyYana/anime-owatteinai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="section-label transition-colors hover:text-text"
+          >
+            github: TinyYana/anime-owatteinai
+          </a>
+          <a
+            href="https://discord.gg/nMAz72MUxv"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="section-label transition-colors hover:text-text"
+          >
+            彼岸花社群永久邀請連結：https://discord.gg/nMAz72MUxv
+          </a>
+        </div>
       </footer>
     </div>
   );

@@ -301,7 +301,7 @@ export function AdminPanelPage() {
             <>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard label="總使用者" value={stats.users.total} />
-                <StatCard label="正式成員" value={stats.users.members} tone="signal" />
+                <StatCard label="正式成員" value={stats.users.total - stats.users.pending - stats.users.banned} tone="signal" />
                 <StatCard label="動畫作品" value={stats.animeTotal} />
                 <StatCard label="待審編輯" value={stats.pendingEditRequests} tone="accent" />
               </div>

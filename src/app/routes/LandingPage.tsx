@@ -16,6 +16,14 @@ const errorMessages: Record<string, string> = {
   not_in_guild: "你目前不在彼岸花社群，請先加入 Discord 伺服器再申請。",
 };
 
+function DiscordLogo() {
+  return (
+    <svg className="h-5 w-5 text-white/90" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M20.32 4.37a19.8 19.8 0 0 0-4.9-1.52.07.07 0 0 0-.08.04c-.21.38-.45.88-.62 1.27a18.3 18.3 0 0 0-5.44 0 13 13 0 0 0-.63-1.27.08.08 0 0 0-.08-.04c-1.7.3-3.35.82-4.9 1.52a.06.06 0 0 0-.03.03C.54 9.05-.32 13.58.1 18.06c0 .02.02.05.04.06a20 20 0 0 0 6 3.03.08.08 0 0 0 .08-.03c.46-.63.87-1.3 1.22-2a.08.08 0 0 0-.04-.1 13 13 0 0 1-1.88-.9.08.08 0 0 1 0-.13l.37-.3a.08.08 0 0 1 .08 0 14.2 14.2 0 0 0 12.06 0 .08.08 0 0 1 .08 0l.38.3a.08.08 0 0 1 0 .13c-.6.35-1.22.65-1.89.9a.08.08 0 0 0-.04.1c.36.7.77 1.37 1.22 2a.08.08 0 0 0 .08.03 19.9 19.9 0 0 0 6-3.03.08.08 0 0 0 .04-.06c.5-5.18-.84-9.67-3.55-13.66a.06.06 0 0 0-.03-.03ZM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42s.96-2.42 2.16-2.42c1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42Zm7.97 0c-1.18 0-2.16-1.08-2.16-2.42s.95-2.42 2.16-2.42 2.17 1.1 2.16 2.42c0 1.34-.95 2.42-2.16 2.42Z" />
+    </svg>
+  );
+}
+
 export function LandingPage() {
   const { me, loading } = useAuth();
   const navigate = useNavigate();
@@ -104,7 +112,8 @@ export function LandingPage() {
       </div>
 
       <div data-hero className="mt-9">
-        <Button onClick={login} disabled={loading} className="px-7 py-2.5 text-base">
+        <Button onClick={login} disabled={loading} className="gap-2 px-7 py-2.5 text-base">
+          <DiscordLogo />
           使用 Discord 登入
         </Button>
       </div>

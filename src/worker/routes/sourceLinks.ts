@@ -11,8 +11,8 @@ import type { AppEnv } from "../env";
 // Mounted at /api — covers both /anime/:id/source-links and /source-links/:id.
 // These rows store ONLY a label + URL. The app never fetches or proxies the
 // content behind the URL.
-// Source links are managed by roles with anime.manage: users see them, but
-// cannot add or remove them (prevents link spam and keeps the list curated).
+// Source links are member-submitted labels + URLs. Deletion stays curated by
+// roles with anime.manage.
 export const sourceLinkRoutes = new Hono<AppEnv>();
 
 sourceLinkRoutes.use("/anime/:id/source-links", requireAuth, requireAppAccess);
@@ -28,8 +28,7 @@ sourceLinkRoutes.get("/anime/:id/source-links", async (c) => {
   return c.json(rows);
 });
 
-// POST requires admin (managed link list, not user-submitted).
-sourceLinkRoutes.post("/anime/:id/source-links", requirePermission("anime.manage", "FORBIDDEN", "Anime management access required"), async (c) => {
+sourceLinkRoutes.post("/anime/:id/source-links", async (c) => {
   const animeId = c.req.param("id");
   const db = c.get("db");
 
@@ -69,7 +68,7 @@ sourceLinkRoutes.post("/anime/:id/source-links", requirePermission("anime.manage
   return c.json(inserted, 201);
 });
 
-// DELETE also admin-only (middleware already enforced above for this path).
+// DELETE is admin-only (middleware already enforced above for this path).
 sourceLinkRoutes.delete("/source-links/:id", async (c) => {
   const db = c.get("db");
   const link = await db.query.sourceLinks.findFirst({

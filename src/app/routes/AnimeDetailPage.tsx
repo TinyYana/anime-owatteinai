@@ -128,7 +128,7 @@ export function AnimeDetailPage() {
           </div>
 
           <div data-reveal>
-            <SourceLinksSection animeId={id} links={links} isAdmin={isAdmin} onChange={reloadLinks} />
+            <SourceLinksSection animeId={id} links={links} canDelete={isAdmin} onChange={reloadLinks} />
           </div>
 
           <div data-reveal>
@@ -214,7 +214,7 @@ function AnimeEditRequestSection({ anime }: { anime: Anime }) {
       {done && <p className="mb-3 text-sm text-signal">已送出，等待管理員審核。</p>}
       {open && (
         <Panel>
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} className="space-y-4" onKeyDown={(e) => { if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) e.preventDefault(); }}>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="中文名稱">
                 <Input value={form.titleZh} onChange={(e) => setForm((f) => ({ ...f, titleZh: e.target.value }))} maxLength={300} />
@@ -377,7 +377,7 @@ function WatchLogSection({
       <p className="mb-3 text-xs text-muted/70">想記特定一集、指定入口或加備註時用這裡；單純看完下一集用上面的「看完」就好。</p>
       {open && (
         <Panel>
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} className="space-y-4" onKeyDown={(e) => { if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) e.preventDefault(); }}>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="集數（正整數）">
                 <Input type="number" min={1} value={episode} onChange={(e) => setEpisode(e.target.value)} />
@@ -415,12 +415,12 @@ function WatchLogSection({
 function SourceLinksSection({
   animeId,
   links,
-  isAdmin,
+  canDelete,
   onChange,
 }: {
   animeId: string;
   links: SourceLink[];
-  isAdmin: boolean;
+  canDelete: boolean;
   onChange: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -461,14 +461,12 @@ function SourceLinksSection({
     <section>
       <div className="mb-3 flex items-center justify-between">
         <SectionTitle label="觀看入口">在哪裡看</SectionTitle>
-        {isAdmin && (
-          <Button variant="ghost" onClick={() => setOpen((o) => !o)}>
-            {open ? "收起" : "＋ 新增入口"}
-          </Button>
-        )}
+        <Button variant="ghost" onClick={() => setOpen((o) => !o)}>
+          {open ? "收起" : "＋ 新增入口"}
+        </Button>
       </div>
 
-      {isAdmin && open && (
+      {open && (
         <Panel className="mb-4">
           <form onSubmit={add} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
@@ -508,7 +506,7 @@ function SourceLinksSection({
 
       {links.length === 0 ? (
         <p className="text-sm text-muted">
-          {isAdmin ? "還沒有觀看入口。新增一個方便成員點過去。" : "管理員尚未設定觀看入口。"}
+          還沒有觀看入口。新增一個方便大家點過去。
         </p>
       ) : (
         <ul className="divide-y divide-border border-y border-border">
@@ -525,7 +523,7 @@ function SourceLinksSection({
                   {l.label}
                 </a>
               </div>
-              {isAdmin && (
+              {canDelete && (
                 <button onClick={() => remove(l.id)} className="shrink-0 text-xs text-muted hover:text-accent">
                   刪除
                 </button>
