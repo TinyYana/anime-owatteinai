@@ -90,6 +90,36 @@ export function TermsPage() {
             若有商業授權需求，請聯繫 admin@tinyyana.com。
           </p>
         </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-text">著作權聲明</h2>
+          <p>
+            本服務所呈現的動漫作品名稱、劇情、圖片等相關內容，其著作權均屬原始權利人所有。
+            本工具僅供個人觀看進度管理使用，不涉及任何著作權授權行為。
+          </p>
+          <p>
+            透過「觀看入口」連結至第三方平台時，該平台的內容與合法性由使用者自行判斷，與本服務無關。
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-text">AI 生成圖像聲明</h2>
+          <p>
+            本專案使用的 Icon、Logo 與標準字，均由 ChatGPT（OpenAI）生成。
+            相關圖像僅作為社群工具的視覺識別，不作商業用途。
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-text">免責聲明</h2>
+          <p>
+            本服務以現況（as-is）提供，不提供任何明示或暗示的保證，包括但不限於服務穩定性、資料完整性或特定目的之適用性。
+          </p>
+          <p>
+            使用者因使用本服務而產生的任何直接或間接損失，本服務恕不負責。
+            本服務得隨時修改、暫停或終止，無須事先通知。
+          </p>
+        </section>
       </div>
 
       <footer className="mt-14 border-t border-border/50 pt-6">
