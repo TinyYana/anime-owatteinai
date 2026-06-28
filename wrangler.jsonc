@@ -41,9 +41,9 @@
 		"DISCORD_GUILD_ID": "859081101859094589",
 		// Non-secret Discord config for bot features. Leave blank to disable.
 		// DISCORD_PUBLIC_KEY: Discord Developer Portal → App → General Information → Public Key
-		"DISCORD_PUBLIC_KEY": "",
+		"DISCORD_PUBLIC_KEY": "406d8c850d50310f1785fe83d137ae6f102dbb395db644b39e101848f3834dd2",
 		// Text channel ID where daily community summaries are posted.
-		"DISCORD_NOTIFICATION_CHANNEL_ID": ""
+		"DISCORD_NOTIFICATION_CHANNEL_ID": "1520661708723585264"
 	},
 	// Cron triggers:
 	//   0 * * * *  — hourly guild membership audit
