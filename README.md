@@ -1,5 +1,9 @@
 # 追番進行式 · AnimeOwatteiNai
 
+<p align="center">
+  <img src="public/logo-nobg.png" alt="追番進行式 Logo" width="120" />
+</p>
+
 > 追番永遠追不完，所以讓系統記得你看到哪。
 
 彼岸花 Discord 社群限定、申請制的追番管理中樞。Discord 登入、成員審核、追番進度、觀看入口就這樣。沒有播放器、沒有 AI 推薦。
