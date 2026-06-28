@@ -39,7 +39,7 @@ export function AppLayout() {
         <Link to="/app" className="group relative flex items-center gap-2">
           <span className="higanbana -left-3 -top-2 h-9 w-9 transition-opacity group-hover:opacity-25" aria-hidden="true" />
           <img
-            src="/追番進行式_LOGO_NoBG.png"
+            src="/logo-nobg.png"
             alt="追番進行式"
             className="relative h-7 w-auto"
           />
