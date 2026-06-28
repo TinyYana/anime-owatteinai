@@ -15,6 +15,7 @@
 	"observability": {
 		"enabled": true
 	},
+  "keep_vars": true,
 	// KV namespace for caching external metadata (AniList / Bangumi / Jikan) responses.
 	// To create for production: `wrangler kv namespace create METADATA_CACHE`
 	// Then replace the id below with the output.
