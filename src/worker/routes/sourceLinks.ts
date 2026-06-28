@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, desc } from "drizzle-orm";
-import { sourceLinks, anime } from "../../db/schema";
+import { sourceLinks, anime, users } from "../../db/schema";
 import { requireAuth, requireAppAccess, requirePermission, roleHasPermission } from "../middleware/auth";
 import { parseBody } from "../util";
 import { createSourceLinkSchema } from "../../shared/validators";
@@ -22,8 +22,20 @@ sourceLinkRoutes.use("/source-links/:id", requireAuth, requireAppAccess);
 sourceLinkRoutes.get("/anime/:id/source-links", async (c) => {
   const db = c.get("db");
   const rows = await db
-    .select()
+    .select({
+      id: sourceLinks.id,
+      animeId: sourceLinks.animeId,
+      userId: sourceLinks.userId,
+      userName: users.discordGlobalName,
+      userUsername: users.discordUsername,
+      type: sourceLinks.type,
+      label: sourceLinks.label,
+      url: sourceLinks.url,
+      createdAt: sourceLinks.createdAt,
+      updatedAt: sourceLinks.updatedAt,
+    })
     .from(sourceLinks)
+    .leftJoin(users, eq(users.id, sourceLinks.userId))
     .where(eq(sourceLinks.animeId, c.req.param("id")))
     .orderBy(desc(sourceLinks.createdAt));
   return c.json(rows);

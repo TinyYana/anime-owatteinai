@@ -543,16 +543,21 @@ function SourceLinksSection({
         <ul className="divide-y divide-border border-y border-border">
           {links.map((l) => (
             <li key={l.id} className="flex items-center justify-between gap-3 py-2.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <Badge>{sourceTypeLabel[l.type]}</Badge>
-                <a
-                  href={l.url}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="truncate text-sm text-text hover:text-accent"
-                >
-                  {l.label}
-                </a>
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Badge>{sourceTypeLabel[l.type]}</Badge>
+                  <a
+                    href={l.url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="truncate text-sm text-text hover:text-accent"
+                  >
+                    {l.label}
+                  </a>
+                </div>
+                <p className="mt-1 text-xs text-muted">
+                  新增：{l.userName ?? l.userUsername ?? l.userId ?? "system"} · {new Date(l.createdAt).toLocaleDateString()}
+                </p>
               </div>
               {(isAdmin || l.userId === currentUserId) && (
                 <button onClick={() => remove(l.id)} className="shrink-0 text-xs text-muted hover:text-accent">

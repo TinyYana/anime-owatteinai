@@ -111,13 +111,20 @@ export function DashboardPage() {
       </div>
 
       <section data-reveal className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        {hero ? (
-          <HeroCard item={hero} links={heroLinks} completing={completing} onComplete={() => completeNext(hero)} />
-        ) : (
-          <Panel>
-            <p className="text-muted">目前沒有進行中的番。從下面「想看」挑一部，標成進行中就會出現在這裡。</p>
-          </Panel>
-        )}
+        <div className="space-y-8">
+          {hero ? (
+            <HeroCard item={hero} links={heroLinks} completing={completing} onComplete={() => completeNext(hero)} />
+          ) : (
+            <Panel>
+              <p className="text-muted">目前沒有進行中的番。從下面「想看」挑一部，標成進行中就會出現在這裡。</p>
+            </Panel>
+          )}
+
+          <div className="grid gap-8 sm:grid-cols-2">
+            <CompactBucket title="想看" emptyHint="還沒有想看清單" items={buckets.planned} />
+            <CompactBucket title="暫停中" emptyHint="沒有暫停中的番" items={buckets.paused} />
+          </div>
+        </div>
 
         <aside className="space-y-6">
           {rest.length > 0 && (
@@ -141,11 +148,6 @@ export function DashboardPage() {
           <CommunitySignal summary={community} />
         </aside>
       </section>
-
-      <div data-reveal className="grid gap-8 sm:grid-cols-2">
-        <CompactBucket title="想看" emptyHint="還沒有想看清單" items={buckets.planned} />
-        <CompactBucket title="暫停中" emptyHint="沒有暫停中的番" items={buckets.paused} />
-      </div>
     </div>
   );
 }

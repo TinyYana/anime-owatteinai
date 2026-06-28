@@ -7,6 +7,8 @@ export type AuditAction =
   | "application.submit"
   | "application.approve"
   | "application.reject"
+  | "anime_edit.approve"
+  | "anime_edit.reject"
   | "user.role_change"
   | "user.guild_revoked"
   | "role.permissions_change"

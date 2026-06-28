@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray, ne } from "drizzle-orm";
 import { accessApplications, users } from "../../db/schema";
 import { requireAuth, requirePermission } from "../middleware/auth";
 import { rateLimit } from "../middleware/rateLimit";
@@ -114,6 +114,51 @@ adminApplicationRoutes.get("/", async (c) => {
   return c.json(rows);
 });
 
+adminApplicationRoutes.get("/reviewed", async (c) => {
+  const db = c.get("db");
+  const rows = await db
+    .select({
+      id: accessApplications.id,
+      userId: accessApplications.userId,
+      status: accessApplications.status,
+      message: accessApplications.message,
+      reviewedByUserId: accessApplications.reviewedByUserId,
+      reviewedAt: accessApplications.reviewedAt,
+      reviewReason: accessApplications.reviewReason,
+      createdAt: accessApplications.createdAt,
+      updatedAt: accessApplications.updatedAt,
+      user: {
+        id: users.id,
+        discordId: users.discordId,
+        discordUsername: users.discordUsername,
+        discordGlobalName: users.discordGlobalName,
+        discordAvatar: users.discordAvatar,
+        role: users.role,
+      },
+    })
+    .from(accessApplications)
+    .innerJoin(users, eq(accessApplications.userId, users.id))
+    .where(ne(accessApplications.status, "pending"))
+    .orderBy(desc(accessApplications.reviewedAt), desc(accessApplications.createdAt))
+    .limit(50);
+
+  const reviewerIds = Array.from(new Set(rows.map((row) => row.reviewedByUserId).filter((id): id is string => !!id)));
+  const reviewers = reviewerIds.length === 0 ? [] : await db
+    .select({
+      id: users.id,
+      discordUsername: users.discordUsername,
+      discordGlobalName: users.discordGlobalName,
+    })
+    .from(users)
+    .where(inArray(users.id, reviewerIds));
+  const reviewerById = new Map(reviewers.map((reviewer) => [reviewer.id, reviewer]));
+
+  return c.json(rows.map((row) => ({
+    ...row,
+    reviewer: row.reviewedByUserId ? reviewerById.get(row.reviewedByUserId) ?? null : null,
+  })));
+});
+
 async function review(c: Context<AppEnv>, status: "approved" | "rejected") {
   const body = c.req.header("Content-Type")?.includes("application/json")
     ? await parseBody(c, reviewApplicationSchema)
@@ -151,11 +196,16 @@ async function review(c: Context<AppEnv>, status: "approved" | "rejected") {
       .where(eq(users.id, app.userId));
   }
 
+  const applicant = await db.query.users.findFirst({ where: eq(users.id, app.userId) });
   const action = status === "approved" ? "application.approve" : "application.reject";
   void audit(db, action, reviewer.id, {
     targetType: "application",
     targetId: id,
-    metadata: { applicantUserId: app.userId },
+    metadata: {
+      applicantUserId: app.userId,
+      applicantName: applicant?.discordGlobalName ?? applicant?.discordUsername,
+      reviewReason: body.reviewReason ?? null,
+    },
   });
   void recordActivityEvent(db, {
     actorUserId: reviewer.id,
@@ -171,7 +221,6 @@ async function review(c: Context<AppEnv>, status: "approved" | "rejected") {
 
   // DM the applicant — fire-and-forget, never block the response
   if (c.env.DISCORD_BOT_TOKEN) {
-    const applicant = await db.query.users.findFirst({ where: eq(users.id, app.userId) });
     if (applicant) {
       void sendDM(
         c.env.DISCORD_BOT_TOKEN,

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, desc, count, sql, and } from "drizzle-orm";
+import { eq, desc, count, sql, and, inArray } from "drizzle-orm";
 import {
   users,
   anime,
@@ -205,13 +205,32 @@ adminPanelRoutes.get("/edit-requests", async (c) => {
         animeTitle: anime.titleZh,
         animeTitleFallback: anime.title,
         userName: users.discordGlobalName,
+        userUsername: users.discordUsername,
       })
       .from(animeEditRequests)
       .innerJoin(anime, eq(anime.id, animeEditRequests.animeId))
       .innerJoin(users, eq(users.id, animeEditRequests.userId))
       .orderBy(desc(animeEditRequests.createdAt))
       .limit(100);
-    return c.json(rows);
+    const reviewerIds = Array.from(new Set(rows.map((row) => row.reviewedByUserId).filter((id): id is string => !!id)));
+    const reviewers = reviewerIds.length === 0 ? [] : await db
+      .select({
+        id: users.id,
+        discordUsername: users.discordUsername,
+        discordGlobalName: users.discordGlobalName,
+      })
+      .from(users)
+      .where(inArray(users.id, reviewerIds));
+    const reviewerById = new Map(reviewers.map((reviewer) => [reviewer.id, reviewer]));
+
+    return c.json(rows.map((row) => {
+      const reviewer = row.reviewedByUserId ? reviewerById.get(row.reviewedByUserId) ?? null : null;
+      return {
+        ...row,
+        reviewerName: reviewer?.discordGlobalName ?? null,
+        reviewerUsername: reviewer?.discordUsername ?? null,
+      };
+    }));
   } catch (err) {
     if (isMissingEditRequestTable(err)) return c.json([]);
     throw err;
@@ -237,18 +256,29 @@ adminPanelRoutes.post("/edit-requests/:id/review", requirePermission("anime.mana
       .where(eq(anime.id, request.animeId));
   }
   const reviewedAnime = await db.query.anime.findFirst({ where: eq(anime.id, request.animeId) });
+  const reviewer = c.get("user");
 
   const [updated] = await db
     .update(animeEditRequests)
     .set({
       status: body.action === "approve" ? "approved" : "rejected",
-      reviewedByUserId: c.get("user").id,
+      reviewedByUserId: reviewer.id,
       reviewedAt: new Date(),
       reviewReason: body.reviewReason ?? null,
       updatedAt: new Date(),
     })
     .where(eq(animeEditRequests.id, request.id))
     .returning();
+  void audit(db, body.action === "approve" ? "anime_edit.approve" : "anime_edit.reject", reviewer.id, {
+    targetType: "anime_edit_request",
+    targetId: request.id,
+    metadata: {
+      animeId: request.animeId,
+      animeTitle: reviewedAnime?.titleZh ?? reviewedAnime?.title,
+      proposerUserId: request.userId,
+      reviewReason: body.reviewReason ?? null,
+    },
+  });
   void createNotificationFromTemplate(
     db,
     request.userId,
@@ -542,8 +572,10 @@ adminPanelRoutes.get("/audit-logs", requirePermission("audit.view", "FORBIDDEN",
       action: auditLogs.action,
       targetType: auditLogs.targetType,
       targetId: auditLogs.targetId,
+      metadataJson: auditLogs.metadataJson,
       createdAt: auditLogs.createdAt,
       actorName: users.discordGlobalName,
+      actorUsername: users.discordUsername,
     })
     .from(auditLogs)
     .leftJoin(users, eq(users.id, auditLogs.actorUserId))

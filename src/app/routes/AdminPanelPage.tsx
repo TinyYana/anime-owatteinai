@@ -47,8 +47,10 @@ type AuditLog = {
   action: string;
   targetType: string | null;
   targetId: string | null;
+  metadataJson: Record<string, unknown> | null;
   createdAt: string;
   actorName: string | null;
+  actorUsername: string | null;
 };
 
 type TestUser = {
@@ -73,6 +75,83 @@ const ANNOUNCEMENT_AUDIENCE_LABEL: Record<AnnouncementAudience, string> = {
   member: "成員",
   admin: "管理員",
 };
+
+function metaText(meta: Record<string, unknown>, key: string) {
+  const value = meta[key];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function metaList(meta: Record<string, unknown>, key: string) {
+  const value = meta[key];
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function roleName(value: string | null) {
+  return value && USER_ROLES.includes(value as UserRole) ? ROLE_LABEL[value as UserRole] : value;
+}
+
+function auditTarget(row: AuditLog) {
+  const labels: Record<string, string> = {
+    application: "加入申請",
+    anime: "動畫",
+    anime_edit_request: "動畫編輯提案",
+    role: "身份",
+    source_link: "觀看入口",
+    user: "使用者",
+  };
+  if (!row.targetType && !row.targetId) return null;
+  const label = row.targetType ? labels[row.targetType] ?? row.targetType : "目標";
+  return row.targetId ? `${label} · ${row.targetId.slice(0, 8)}` : label;
+}
+
+function describeAudit(row: AuditLog) {
+  const actor = row.actorName ?? row.actorUsername ?? row.actorUserId ?? "系統";
+  const meta = row.metadataJson ?? {};
+  const reason = metaText(meta, "reviewReason");
+  const animeTitle = metaText(meta, "animeTitle") ?? metaText(meta, "title");
+  const target = auditTarget(row);
+  const withReason = (text: string | null) => reason ? [text, `審核補充：${reason}`].filter(Boolean).join(" · ") : text;
+
+  switch (row.action) {
+    case "application.submit":
+      return { tone: "muted" as const, title: `${actor} 送出加入申請`, detail: target };
+    case "application.approve":
+      return { tone: "signal" as const, title: `${actor} 通過了 ${metaText(meta, "applicantName") ?? "申請者"} 的加入申請`, detail: withReason(target) };
+    case "application.reject":
+      return { tone: "accent" as const, title: `${actor} 拒絕了 ${metaText(meta, "applicantName") ?? "申請者"} 的加入申請`, detail: withReason(target) };
+    case "anime_edit.approve":
+      return { tone: "signal" as const, title: `${actor} 通過動畫編輯`, detail: withReason(animeTitle ?? target) };
+    case "anime_edit.reject":
+      return { tone: "accent" as const, title: `${actor} 拒絕動畫編輯`, detail: withReason(animeTitle ?? target) };
+    case "user.role_change":
+      return { tone: "accent" as const, title: `${actor} 調整使用者身份`, detail: `${roleName(metaText(meta, "from")) ?? "未知"} → ${roleName(metaText(meta, "to")) ?? "未知"}` };
+    case "role.permissions_change": {
+      const permissions = metaList(meta, "permissions");
+      return { tone: "accent" as const, title: `${actor} 更新 ${roleName(row.targetId) ?? "身份"} 權限`, detail: permissions.length ? `啟用 ${permissions.length} 項權限` : target };
+    }
+    case "anime.import":
+      return { tone: "signal" as const, title: `${actor} 匯入動畫`, detail: animeTitle ?? target };
+    case "anime.update":
+      return { tone: "muted" as const, title: `${actor} 更新動畫資料`, detail: metaList(meta, "fields").join("、") || target };
+    case "anime.merge":
+      return { tone: "accent" as const, title: `${actor} 合併動畫`, detail: [metaText(meta, "sourceTitle"), metaText(meta, "targetTitle")].filter(Boolean).join(" → ") || target };
+    case "source_link.create":
+      return { tone: "signal" as const, title: `${actor} 新增觀看入口`, detail: metaText(meta, "label") ?? target };
+    case "source_link.delete":
+    case "source_link.clear_all":
+      return { tone: "accent" as const, title: `${actor} 移除觀看入口`, detail: metaText(meta, "label") ?? target };
+    case "alias.delete":
+      return { tone: "accent" as const, title: `${actor} 移除別名`, detail: metaText(meta, "removedAlias") ?? target };
+    case "user.guild_revoked":
+      return { tone: "accent" as const, title: "系統移除離開 Discord 的成員權限", detail: target };
+    case "user.login":
+      return { tone: "muted" as const, title: `${actor} 登入`, detail: null };
+    case "user.logout":
+      return { tone: "muted" as const, title: `${actor} 登出`, detail: null };
+    default:
+      return { tone: "muted" as const, title: `${actor} 執行 ${row.action}`, detail: target };
+  }
+}
 
 export function AdminPanelPage() {
   const { me, refetch } = useAuth();
@@ -192,7 +271,15 @@ export function AdminPanelPage() {
       await api.post(`/api/admin/panel/edit-requests/${id}/review`, { action, reviewReason });
       setEditRequests((prev) =>
         prev?.map((r) => (
-          r.id === id ? { ...r, status: action === "approve" ? "approved" : "rejected", reviewReason } : r
+          r.id === id ? {
+            ...r,
+            status: action === "approve" ? "approved" : "rejected",
+            reviewedByUserId: me?.id ?? r.reviewedByUserId,
+            reviewedAt: new Date().toISOString(),
+            reviewReason,
+            reviewerName: me?.discordGlobalName ?? null,
+            reviewerUsername: me?.discordUsername ?? null,
+          } : r
         )) ?? prev,
       );
       setEditReviewReasons((prev) => {
@@ -460,9 +547,15 @@ export function AdminPanelPage() {
                       <Link to={`/app/anime/${r.animeId}`} className="font-medium text-text hover:text-accent">
                         {r.animeTitle ?? r.animeTitleFallback}
                       </Link>
-                      <p className="font-mono text-xs text-muted">
-                        {r.userName ?? "使用者"} · {new Date(r.createdAt).toLocaleString()}
+                      <p className="text-xs text-muted">
+                        編輯：{r.userName ?? r.userUsername ?? "使用者"} · {new Date(r.createdAt).toLocaleString()}
                       </p>
+                      {r.status !== "pending" && (
+                        <p className="text-xs text-muted">
+                          審核：{r.reviewerName ?? r.reviewerUsername ?? r.reviewedByUserId ?? "system"}
+                          {r.reviewedAt ? ` · ${new Date(r.reviewedAt).toLocaleString()}` : ""}
+                        </p>
+                      )}
                     </div>
                     <Badge tone={r.status === "approved" ? "signal" : r.status === "rejected" ? "accent" : "muted"}>
                       {r.status === "pending" ? "待審" : r.status === "approved" ? "已通過" : "已拒絕"}
@@ -526,34 +619,32 @@ export function AdminPanelPage() {
       )}
 
       {tab === "audit" && (
-        <div data-reveal>
+        <div data-reveal className="space-y-3">
+          <p className="text-sm text-muted">最近 200 筆管理操作，優先顯示可讀的事件摘要；原始目標 ID 保留在小字裡方便追查。</p>
           {auditLogs === null ? <Loading /> : auditLogs.length === 0 ? (
             <p className="text-muted">沒有審計紀錄。</p>
           ) : (
-            <div className="overflow-x-auto border-y border-border/50">
-              <table className="min-w-[46rem] w-full text-left text-sm">
-                <thead className="text-xs text-muted">
-                  <tr className="border-b border-border/40">
-                    <th className="py-2 pr-4 font-medium">時間</th>
-                    <th className="py-2 pr-4 font-medium">操作者</th>
-                    <th className="py-2 pr-4 font-medium">動作</th>
-                    <th className="py-2 font-medium">目標</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {auditLogs.map((row) => (
-                    <tr key={row.id}>
-                      <td className="py-2.5 pr-4 font-mono text-xs text-muted">{new Date(row.createdAt).toLocaleString()}</td>
-                      <td className="py-2.5 pr-4 text-text">{row.actorName ?? row.actorUserId ?? "system"}</td>
-                      <td className="py-2.5 pr-4 font-mono text-xs text-signal">{row.action}</td>
-                      <td className="py-2.5 font-mono text-xs text-muted">
-                        {row.targetType ?? "-"}{row.targetId ? ` · ${row.targetId}` : ""}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ul className="divide-y divide-border/40 border-y border-border/50">
+              {auditLogs.map((row) => {
+                const item = describeAudit(row);
+                return (
+                  <li key={row.id} className="py-3 text-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-text">{item.title}</p>
+                        {item.detail && <p className="mt-1 break-words text-muted">{item.detail}</p>}
+                      </div>
+                      <Badge tone={item.tone}>{row.action}</Badge>
+                    </div>
+                    <p className="mt-1 font-mono text-xs text-muted">
+                      {new Date(row.createdAt).toLocaleString()}
+                      {row.targetType ? ` · ${row.targetType}` : ""}
+                      {row.targetId ? ` · ${row.targetId}` : ""}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       )}

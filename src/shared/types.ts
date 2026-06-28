@@ -184,6 +184,8 @@ export interface SourceLink {
   id: string;
   animeId: string;
   userId: string | null;
+  userName: string | null;
+  userUsername: string | null;
   type: SourceType;
   label: string;
   url: string;
@@ -221,6 +223,10 @@ export interface AccessApplicationWithUser extends AccessApplication {
   user: Pick<MeResponse, "id" | "discordId" | "discordUsername" | "discordGlobalName" | "discordAvatar" | "role">;
 }
 
+export interface AccessApplicationReviewRecord extends AccessApplicationWithUser {
+  reviewer: Pick<MeResponse, "id" | "discordUsername" | "discordGlobalName"> | null;
+}
+
 export interface AnimeEditRequest {
   id: string;
   animeId: string;
@@ -236,6 +242,9 @@ export interface AnimeEditRequest {
   animeTitle: string | null;
   animeTitleFallback: string;
   userName: string | null;
+  userUsername: string | null;
+  reviewerName: string | null;
+  reviewerUsername: string | null;
 }
 
 export interface RolePermissionConfig {
