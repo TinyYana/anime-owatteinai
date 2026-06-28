@@ -180,15 +180,21 @@ function AnimeEditRequestSection({ anime }: { anime: Anime }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const payload = {
-      titleZh: form.titleZh.trim() || null,
-      titleJp: form.titleJp.trim() || null,
-      episodesTotal: form.episodesTotal.trim() ? Math.max(0, Math.floor(Number(form.episodesTotal))) : null,
-      coverImageUrl: form.coverImageUrl.trim() || null,
-      description: form.description.trim() || null,
-    };
-    if (Object.values(payload).every((v) => v === null)) {
-      setError("請至少填寫一個欄位。");
+    // Only include fields the user actually changed — unchanged fields (including
+    // fields that were already empty) must not appear in the payload.
+    const payload: Record<string, string | number | null> = {};
+    const newTitleZh = form.titleZh.trim() || null;
+    if (newTitleZh !== (anime.titleZh ?? null)) payload.titleZh = newTitleZh;
+    const newTitleJp = form.titleJp.trim() || null;
+    if (newTitleJp !== (anime.titleJp ?? null)) payload.titleJp = newTitleJp;
+    const newEpisodes = form.episodesTotal.trim() ? Math.max(0, Math.floor(Number(form.episodesTotal))) : null;
+    if (newEpisodes !== (anime.episodesTotal ?? null)) payload.episodesTotal = newEpisodes;
+    const newCover = form.coverImageUrl.trim() || null;
+    if (newCover !== (anime.coverImageUrl ?? null)) payload.coverImageUrl = newCover;
+    const newDesc = form.description.trim() || null;
+    if (newDesc !== (anime.description ?? null)) payload.description = newDesc;
+    if (Object.keys(payload).length === 0) {
+      setError("沒有偵測到任何變更。");
       return;
     }
     setBusy(true);
