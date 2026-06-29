@@ -290,7 +290,7 @@ export function MyAnimePage() {
           )}
 
           {viewMode === "grid" && filteredList.length > 0 && (
-            <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {filteredList.map((item) => (
                 <MyAnimeGridCard key={item.id} item={item} />
               ))}
@@ -363,10 +363,13 @@ function MyAnimeRow({
         isDragOver ? "border-t-2 border-accent/60" : "",
       ].filter(Boolean).join(" ")}
     >
-      <div className={[
-        "flex items-center justify-center text-muted/40 select-none",
-        draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-0",
-      ].join(" ")}>
+      <div
+        title={draggable ? undefined : "清除篩選後可拖拉排序"}
+        className={[
+          "flex items-center justify-center select-none",
+          draggable ? "cursor-grab active:cursor-grabbing text-muted/40" : "cursor-not-allowed text-muted/20",
+        ].join(" ")}
+      >
         ⠿
       </div>
 
@@ -508,13 +511,13 @@ function MyAnimeCompactRow({
   }
 
   return (
-    <li className="group flex items-center gap-3 py-2 transition-colors hover:bg-surface/40 -mx-2 px-2 rounded-lg">
-      {/* status */}
+    <li className="group grid grid-cols-[6rem_1fr_1.5rem] sm:grid-cols-[6rem_1fr_9.5rem_4.5rem_1.5rem] items-center gap-2 py-2 transition-colors hover:bg-surface/40 -mx-2 px-2 rounded-lg">
+      {/* status — fixed 6rem so it never shifts the rest */}
       <Select
         aria-label="狀態"
         value={item.status}
         onChange={(e) => void save({ status: e.target.value as WatchStatus })}
-        className="shrink-0 w-auto py-0.5 pl-2 pr-6 text-xs"
+        className="w-full py-0.5 pl-2 pr-6 text-xs"
         disabled={saving}
       >
         {WATCH_STATUSES.map((s) => (
@@ -525,14 +528,14 @@ function MyAnimeCompactRow({
       {/* title */}
       <Link
         to={`/app/anime/${item.animeId}`}
-        className="flex-1 min-w-0 truncate text-sm font-medium text-text hover:text-accent"
+        className="min-w-0 truncate text-sm font-medium text-text hover:text-accent"
       >
         {title}
       </Link>
 
-      {/* episode input */}
-      <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-        <span className="font-mono text-xs text-muted">EP</span>
+      {/* episode input — fixed width column, hidden on mobile */}
+      <div className="hidden sm:flex items-center gap-1.5 justify-end">
+        <span className="font-mono text-xs text-muted shrink-0">EP</span>
         <Input
           aria-label="目前集數"
           type="number"
@@ -540,13 +543,15 @@ function MyAnimeCompactRow({
           value={episode}
           onChange={(e) => setEpisode(e.target.value)}
           onBlur={commitEpisode}
-          className="w-16 px-1.5 py-0.5 text-center text-xs"
+          className="w-14 px-1.5 py-0.5 text-center text-xs shrink-0"
         />
-        {total ? <span className="font-mono text-xs text-muted/60">/{total}</span> : null}
+        <span className="font-mono text-xs text-muted/60 shrink-0 w-8 text-left truncate">
+          {total ? `/${total}` : ""}
+        </span>
       </div>
 
-      {/* mini progress rail */}
-      <div className="hidden md:block w-20 shrink-0">
+      {/* mini progress rail — fixed width column, hidden below md */}
+      <div className="hidden md:block">
         <ProgressRail current={Number(episode) || 0} total={total} />
       </div>
 
@@ -554,7 +559,7 @@ function MyAnimeCompactRow({
       <button
         onClick={remove}
         aria-label="移除"
-        className="shrink-0 text-muted/40 hover:text-accent transition-colors opacity-0 group-hover:opacity-100 text-sm leading-none"
+        className="text-muted/40 hover:text-accent transition-colors opacity-0 group-hover:opacity-100 text-sm leading-none justify-self-center"
         disabled={saving}
       >
         ×
@@ -568,36 +573,52 @@ function MyAnimeCompactRow({
 function MyAnimeGridCard({ item }: { item: UserAnimeWithAnime }) {
   const title = animeTitle(item.anime);
   const total = item.anime.episodesTotal;
+  const meta = animeMeta(item.anime);
 
   return (
     <li className="group">
       <Link to={`/app/anime/${item.animeId}`} className="block">
+        {/* Cover */}
         <div className="relative overflow-hidden rounded-xl">
           {item.anime.coverImageUrl ? (
             <img
               src={coverUrl(item.anime.coverImageUrl)}
               alt=""
-              className="aspect-[2/3] w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+              className="aspect-[2/3] w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             />
           ) : (
             <div className="aspect-[2/3] w-full bg-panel/70 border border-border/60 rounded-xl flex items-center justify-center text-xs text-muted">
               無封面
             </div>
           )}
-          {/* gradient overlay */}
-          <div className="absolute inset-x-0 bottom-0 rounded-b-xl bg-gradient-to-t from-black/75 via-black/25 to-transparent px-2 pb-2 pt-6">
-            <p className="text-xs font-medium text-white/95 line-clamp-2 leading-snug">{title}</p>
-            <div className="mt-1 flex items-center justify-between gap-1">
-              <span className="font-mono text-[10px] text-white/55 shrink-0">
-                EP {item.currentEpisode}{total ? `/${total}` : ""}
-              </span>
-              <span className="kbd-label text-[10px] text-white/55 truncate">
-                {statusLabel[item.status]}
-              </span>
-            </div>
-          </div>
+          {/* Status badge — top left overlay */}
+          <span className="absolute top-1.5 left-1.5 kbd-label rounded-full bg-black/55 backdrop-blur-sm px-2 py-0.5 text-[10px] text-white/90 leading-none">
+            {statusLabel[item.status]}
+          </span>
+          {/* High priority dot — top right */}
+          {item.priority === "high" && (
+            <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-accent shadow-sm" title="高優先" />
+          )}
         </div>
-        <div className="mt-1.5">
+
+        {/* Below-cover info */}
+        <div className="mt-2 space-y-1 px-0.5">
+          <p className="text-sm font-medium text-text line-clamp-2 leading-snug group-hover:text-accent transition-colors">
+            {title}
+          </p>
+          {meta && (
+            <p className="font-mono text-[10px] text-muted/70 truncate">{meta}</p>
+          )}
+          <div className="flex items-center justify-between gap-1">
+            <span className="font-mono text-xs text-muted">
+              EP {item.currentEpisode}{total ? ` / ${total}` : ""}
+            </span>
+            {total && (
+              <span className="font-mono text-[10px] text-muted/60">
+                {Math.round((item.currentEpisode / total) * 100)}%
+              </span>
+            )}
+          </div>
           <ProgressRail current={item.currentEpisode} total={total} />
         </div>
       </Link>
