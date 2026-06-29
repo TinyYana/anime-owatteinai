@@ -171,6 +171,7 @@ export interface UserAnime {
   priority: AnimePriority;
   isPublic: boolean;
   privateNote: string | null;
+  sortOrder: number | null;
   createdAt: string;
   updatedAt: string;
 }

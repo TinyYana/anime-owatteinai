@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fmtDateTime } from "../lib/date";
 import { useAuth } from "../lib/auth";
 import { Button, Badge } from "../components/ui";
 import { useReveal } from "../lib/motion";
@@ -151,7 +152,7 @@ export function SettingsPage() {
                 </div>
 
                 {draft.dailyDmLastSentAt && (
-                  <p className="text-xs text-muted">上次每日簡報：{new Date(draft.dailyDmLastSentAt).toLocaleString()}</p>
+                  <p className="text-xs text-muted">上次每日簡報：{fmtDateTime(draft.dailyDmLastSentAt)}</p>
                 )}
                 {message && (
                   <p className={`text-xs ${messageTone === "signal" ? "text-signal" : "text-accent"}`}>{message}</p>

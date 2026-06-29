@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { fmtDate, fmtDateTime } from "../lib/date";
 import { Panel, Button, Badge, Loading, Textarea } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import type { AccessApplicationReviewRecord, AccessApplicationWithUser } from "../../shared/types";
@@ -58,7 +59,7 @@ export function AdminApplicationsPage() {
                     @{app.user.discordUsername} · {app.user.discordId}
                   </div>
                 </div>
-                <Badge tone="signal">{new Date(app.createdAt).toLocaleDateString()}</Badge>
+                <Badge tone="signal">{fmtDate(app.createdAt)}</Badge>
               </div>
 
               {app.message && (
@@ -103,7 +104,7 @@ export function AdminApplicationsPage() {
                       <span className="ml-2 text-xs text-muted">@{item.user.discordUsername}</span>
                     </p>
                     <p className="mt-1 text-xs text-muted">
-                      {item.reviewedAt ? new Date(item.reviewedAt).toLocaleString() : "沒有時間紀錄"}
+                      {item.reviewedAt ? fmtDateTime(item.reviewedAt) : "沒有時間紀錄"}
                       {" · "}
                       {item.reviewer?.discordGlobalName ?? item.reviewer?.discordUsername ?? item.reviewedByUserId ?? "system"}
                     </p>

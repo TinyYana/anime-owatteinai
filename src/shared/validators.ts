@@ -105,6 +105,10 @@ export const updateMyAnimeSchema = z
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: "No fields to update" });
 
+export const reorderMyAnimeSchema = z.object({
+  orders: z.array(z.object({ id: z.string().uuid(), sortOrder: z.number().int().min(0) })).min(1),
+});
+
 // --- Source links ---
 export const createSourceLinkSchema = z.object({
   type: sourceTypeSchema,
@@ -212,6 +216,7 @@ export type CreateAnimeEditRequestInput = z.infer<typeof createAnimeEditRequestS
 export type ImportAnimeInput = z.infer<typeof importAnimeSchema>;
 export type AddMyAnimeInput = z.infer<typeof addMyAnimeSchema>;
 export type UpdateMyAnimeInput = z.infer<typeof updateMyAnimeSchema>;
+export type ReorderMyAnimeInput = z.infer<typeof reorderMyAnimeSchema>;
 export type CreateSourceLinkInput = z.infer<typeof createSourceLinkSchema>;
 export type CreateWatchSessionInput = z.infer<typeof createWatchSessionSchema>;
 export type CreateApplicationInput = z.infer<typeof createApplicationSchema>;

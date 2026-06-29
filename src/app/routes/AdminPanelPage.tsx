@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { fmtDate, fmtDateTime } from "../lib/date";
 import { Panel, Button, Badge, Loading, Input, Select, Textarea } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import { hasPermission, useAuth } from "../lib/auth";
@@ -489,7 +490,7 @@ export function AdminPanelPage() {
                       </td>
                       <td className="py-2.5 pr-4"><Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge></td>
                       <td className="py-2.5 pr-4 font-mono text-xs text-muted">{u.animeCount}</td>
-                      <td className="py-2.5 pr-4 font-mono text-xs text-muted">{new Date(u.createdAt).toLocaleDateString()}</td>
+                      <td className="py-2.5 pr-4 font-mono text-xs text-muted">{fmtDate(u.createdAt)}</td>
                       <td className="py-2.5">
                         {u.id === me?.id ? (
                           <span className="text-xs text-muted">自己</span>
@@ -548,12 +549,12 @@ export function AdminPanelPage() {
                         {r.animeTitle ?? r.animeTitleFallback}
                       </Link>
                       <p className="text-xs text-muted">
-                        編輯：{r.userName ?? r.userUsername ?? "使用者"} · {new Date(r.createdAt).toLocaleString()}
+                        編輯：{r.userName ?? r.userUsername ?? "使用者"} · {fmtDateTime(r.createdAt)}
                       </p>
                       {r.status !== "pending" && (
                         <p className="text-xs text-muted">
                           審核：{r.reviewerName ?? r.reviewerUsername ?? r.reviewedByUserId ?? "system"}
-                          {r.reviewedAt ? ` · ${new Date(r.reviewedAt).toLocaleString()}` : ""}
+                          {r.reviewedAt ? ` · ${fmtDateTime(r.reviewedAt)}` : ""}
                         </p>
                       )}
                     </div>
@@ -609,7 +610,7 @@ export function AdminPanelPage() {
                     <span className="ml-2 text-muted text-xs">{a.userName ?? "？"}</span>
                   </div>
                   <span className="font-mono text-xs text-muted">
-                    EP{a.episodeNumber}{a.completed ? " ✓" : ""} · {new Date(a.watchedAt).toLocaleString()}
+                    EP{a.episodeNumber}{a.completed ? " ✓" : ""} · {fmtDateTime(a.watchedAt)}
                   </span>
                 </li>
               ))}
@@ -637,7 +638,7 @@ export function AdminPanelPage() {
                       <Badge tone={item.tone}>{row.action}</Badge>
                     </div>
                     <p className="mt-1 font-mono text-xs text-muted">
-                      {new Date(row.createdAt).toLocaleString()}
+                      {fmtDateTime(row.createdAt)}
                       {row.targetType ? ` · ${row.targetType}` : ""}
                       {row.targetId ? ` · ${row.targetId}` : ""}
                     </p>

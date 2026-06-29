@@ -122,6 +122,7 @@ export const userAnime = appSchema.table(
     priority: animePriorityEnum("priority").notNull().default("normal"),
     isPublic: boolean("is_public").notNull().default(false),
     privateNote: text("private_note"),
+    sortOrder: integer("sort_order"),
     ...timestamps,
   },
   (t) => [

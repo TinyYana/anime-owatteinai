@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { fmtDate } from "../lib/date";
 import { api, coverUrl } from "../lib/api";
 import { markEpisodeWatched } from "../lib/watch";
 import { Panel, Badge, Button, ProgressRail, Loading, SourceLinkButtons } from "../components/ui";
@@ -257,7 +258,7 @@ function RecentSessions({
                 {titleById.get(s.animeId) ?? "動畫"}
               </Link>
               <span className="shrink-0 font-mono text-xs text-muted">
-                EP{s.episodeNumber} · {new Date(s.watchedAt).toLocaleDateString()}
+                EP{s.episodeNumber} · {fmtDate(s.watchedAt)}
               </span>
             </li>
           ))}

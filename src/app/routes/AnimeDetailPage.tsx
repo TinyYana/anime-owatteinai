@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { fmtDate } from "../lib/date";
 import { api, ApiError, coverUrl } from "../lib/api";
 import { hasPermission, useAuth } from "../lib/auth";
 import { markEpisodeWatched } from "../lib/watch";
@@ -556,7 +557,7 @@ function SourceLinksSection({
                   </a>
                 </div>
                 <p className="mt-1 text-xs text-muted">
-                  新增：{l.userName ?? l.userUsername ?? l.userId ?? "system"} · {new Date(l.createdAt).toLocaleDateString()}
+                  新增：{l.userName ?? l.userUsername ?? l.userId ?? "system"} · {fmtDate(l.createdAt)}
                 </p>
               </div>
               {(isAdmin || l.userId === currentUserId) && (

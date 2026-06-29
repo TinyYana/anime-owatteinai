@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { userAnime, anime, watchSessions, sourceLinks } from "../../db/schema";
 import { requireAuth, requireAppAccess } from "../middleware/auth";
 import { rateLimit } from "../middleware/rateLimit";
@@ -7,6 +7,7 @@ import { parseBody } from "../util";
 import {
   addMyAnimeSchema,
   updateMyAnimeSchema,
+  reorderMyAnimeSchema,
   createWatchSessionSchema,
 } from "../../shared/validators";
 import { recordActivityEvent } from "../lib/activity";
@@ -22,6 +23,7 @@ const userAnimeWithAnime = {
   priority: userAnime.priority,
   isPublic: userAnime.isPublic,
   privateNote: userAnime.privateNote,
+  sortOrder: userAnime.sortOrder,
   createdAt: userAnime.createdAt,
   updatedAt: userAnime.updatedAt,
   anime: anime,
@@ -75,7 +77,7 @@ myAnimeRoutes.get("/", async (c) => {
     .from(userAnime)
     .innerJoin(anime, eq(userAnime.animeId, anime.id))
     .where(eq(userAnime.userId, c.get("user").id))
-    .orderBy(desc(userAnime.updatedAt));
+    .orderBy(sql`${userAnime.sortOrder} asc nulls last`, desc(userAnime.updatedAt));
   return c.json(rows);
 });
 
@@ -112,6 +114,28 @@ myAnimeRoutes.post("/", async (c) => {
     metadata: { status: body.status, priority: body.priority },
   });
   return c.json(inserted[0], 201);
+});
+
+myAnimeRoutes.patch("/reorder", async (c) => {
+  const body = await parseBody(c, reorderMyAnimeSchema);
+  if (body instanceof Response) return body;
+  const db = c.get("db");
+  const userId = c.get("user").id;
+  const ids = body.orders.map((o) => o.id);
+  // Ownership check: verify all ids belong to the current user
+  const owned = await db
+    .select({ id: userAnime.id })
+    .from(userAnime)
+    .where(and(inArray(userAnime.id, ids), eq(userAnime.userId, userId)));
+  if (owned.length !== ids.length) {
+    return c.json({ error: { code: "FORBIDDEN", message: "One or more entries not found" } }, 403);
+  }
+  await db.transaction(async (tx) => {
+    for (const { id, sortOrder } of body.orders) {
+      await tx.update(userAnime).set({ sortOrder }).where(eq(userAnime.id, id));
+    }
+  });
+  return c.json({ ok: true });
 });
 
 myAnimeRoutes.patch("/:id", async (c) => {

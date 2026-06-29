@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { fmtDate } from "../lib/date";
 import { Button, Loading } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import type { Notification } from "../../shared/types";
@@ -70,7 +71,7 @@ export function NotificationsPage() {
                 {item.body && <p className="mt-1 truncate text-muted">{item.body}</p>}
               </div>
               <time className="font-mono text-xs text-muted md:text-right">
-                {new Date(item.createdAt).toLocaleDateString()}
+                {fmtDate(item.createdAt)}
               </time>
               {item.isRead ? (
                 <span className="text-xs text-muted md:text-right">已讀</span>
