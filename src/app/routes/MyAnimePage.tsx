@@ -55,6 +55,8 @@ function sortList(list: UserAnimeWithAnime[]): UserAnimeWithAnime[] {
 
 export function MyAnimePage() {
   const [list, setList] = useState<UserAnimeWithAnime[] | null>(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<WatchStatus | "all">("all");
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const reorderTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,6 +123,15 @@ export function MyAnimePage() {
     count: list.filter((i) => i.status === status).length,
   })).filter((g) => g.count > 0);
 
+  const q = query.trim().toLowerCase();
+  const filteredList = sortedList.filter((item) => {
+    if (statusFilter !== "all" && item.status !== statusFilter) return false;
+    if (!q) return true;
+    const a = item.anime;
+    return [a.titleZh, a.title, a.titleJp, a.titleRomaji, a.titleEnglish, a.titleNative]
+      .some((t) => t?.toLowerCase().includes(q));
+  });
+
   return (
     <div ref={scope} className="space-y-6">
       <header data-reveal className="flex items-baseline justify-between">
@@ -137,21 +148,56 @@ export function MyAnimePage() {
         <p data-reveal className="text-muted">清單是空的，先去新增一部動畫</p>
       ) : (
         <div data-reveal className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {counts.map((g) => (
-              <span key={g.status} className="kbd-label rounded-full border border-border/60 px-2.5 py-1">
-                {statusLabel[g.status]} {g.count}
-              </span>
-            ))}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Input
+              aria-label="搜尋動畫"
+              type="search"
+              placeholder="搜尋動畫名稱…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full sm:max-w-xs px-3 py-1.5 text-sm"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={[
+                  "kbd-label rounded-full border px-2.5 py-1 transition-colors",
+                  statusFilter === "all"
+                    ? "border-accent/60 text-accent"
+                    : "border-border/60 hover:border-accent/40",
+                ].join(" ")}
+              >
+                全部 {list.length}
+              </button>
+              {counts.map((g) => (
+                <button
+                  key={g.status}
+                  onClick={() => setStatusFilter(statusFilter === g.status ? "all" : g.status)}
+                  className={[
+                    "kbd-label rounded-full border px-2.5 py-1 transition-colors",
+                    statusFilter === g.status
+                      ? "border-accent/60 text-accent"
+                      : "border-border/60 hover:border-accent/40",
+                  ].join(" ")}
+                >
+                  {statusLabel[g.status]} {g.count}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {filteredList.length === 0 && (
+            <p className="text-sm text-muted">沒有符合條件的動畫</p>
+          )}
+
           <ul className="divide-y divide-border/50 border-y border-border/50">
-            {sortedList.map((item) => (
+            {filteredList.map((item) => (
               <MyAnimeRow
                 key={item.id}
                 item={item}
                 isDragging={dragId === item.id}
                 isDragOver={dragOverId === item.id}
+                draggable={!q && statusFilter === "all"}
                 onDragStart={() => handleDragStart(item.id)}
                 onDragOver={(e) => handleDragOver(e, item.id)}
                 onDrop={(e) => handleDrop(e, item.id)}
@@ -171,6 +217,7 @@ function MyAnimeRow({
   item,
   isDragging,
   isDragOver,
+  draggable,
   onDragStart,
   onDragOver,
   onDrop,
@@ -181,6 +228,7 @@ function MyAnimeRow({
   item: UserAnimeWithAnime;
   isDragging: boolean;
   isDragOver: boolean;
+  draggable: boolean;
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
@@ -219,11 +267,11 @@ function MyAnimeRow({
 
   return (
     <li
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      onDragEnd={onDragEnd}
+      draggable={draggable}
+      onDragStart={draggable ? onDragStart : undefined}
+      onDragOver={draggable ? onDragOver : undefined}
+      onDrop={draggable ? onDrop : undefined}
+      onDragEnd={draggable ? onDragEnd : undefined}
       className={[
         "group grid grid-cols-[1.25rem_4.75rem_minmax(0,1fr)] gap-3 py-4",
         "md:grid-cols-[1.25rem_5.5rem_minmax(0,1fr)] md:gap-5 md:py-5",
@@ -232,8 +280,10 @@ function MyAnimeRow({
         isDragOver ? "border-t-2 border-accent/60" : "",
       ].filter(Boolean).join(" ")}
     >
-      {/* Drag handle */}
-      <div className="flex cursor-grab items-center justify-center text-muted/40 active:cursor-grabbing select-none">
+      <div className={[
+        "flex items-center justify-center text-muted/40 select-none",
+        draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-0",
+      ].join(" ")}>
         ⠿
       </div>
 
