@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { userAnime, anime, watchSessions, sourceLinks } from "../../db/schema";
 import { requireAuth, requireAppAccess } from "../middleware/auth";
 import { rateLimit } from "../middleware/rateLimit";
@@ -77,7 +77,7 @@ myAnimeRoutes.get("/", async (c) => {
     .from(userAnime)
     .innerJoin(anime, eq(userAnime.animeId, anime.id))
     .where(eq(userAnime.userId, c.get("user").id))
-    .orderBy(sql`${userAnime.sortOrder} asc nulls last`, desc(userAnime.updatedAt));
+    .orderBy(asc(userAnime.sortOrder), desc(userAnime.updatedAt));
   return c.json(rows);
 });
 
