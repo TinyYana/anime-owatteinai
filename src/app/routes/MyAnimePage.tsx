@@ -24,6 +24,9 @@ const SEASON_LABEL: Record<string, string> = {
 const GROUP_ORDER: WatchStatus[] = ["watching", "planned", "paused", "completed", "dropped"];
 const statusRank = Object.fromEntries(GROUP_ORDER.map((s, i) => [s, i])) as Record<WatchStatus, number>;
 
+type ViewMode = "list" | "compact" | "grid";
+const VIEW_MODE_KEY = "aon-my-anime-view";
+
 function animeTitle(a: UserAnimeWithAnime["anime"]): string {
   return a.titleZh || a.title || a.titleJp || "未命名";
 }
@@ -46,17 +49,65 @@ function sortList(list: UserAnimeWithAnime[]): UserAnimeWithAnime[] {
     const ao = a.sortOrder ?? Infinity;
     const bo = b.sortOrder ?? Infinity;
     if (ao !== bo) return ao - bo;
-    // Fall back to status group then updatedAt for unsorted items
     const sr = statusRank[a.status] - statusRank[b.status];
     if (sr !== 0) return sr;
     return b.updatedAt.localeCompare(a.updatedAt);
   });
 }
 
+function IconList() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <circle cx="2" cy="3" r="0.75" fill="currentColor" />
+      <rect x="4.5" y="2.25" width="7.5" height="1.5" rx="0.75" fill="currentColor" />
+      <circle cx="2" cy="7" r="0.75" fill="currentColor" />
+      <rect x="4.5" y="6.25" width="7.5" height="1.5" rx="0.75" fill="currentColor" />
+      <circle cx="2" cy="11" r="0.75" fill="currentColor" />
+      <rect x="4.5" y="10.25" width="7.5" height="1.5" rx="0.75" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconCompact() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <rect x="1" y="1.5" width="12" height="1.25" rx="0.625" fill="currentColor" />
+      <rect x="1" y="4.5" width="12" height="1.25" rx="0.625" fill="currentColor" />
+      <rect x="1" y="7.5" width="12" height="1.25" rx="0.625" fill="currentColor" />
+      <rect x="1" y="10.5" width="12" height="1.25" rx="0.625" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconGrid() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <rect x="1" y="1" width="5.5" height="5.5" rx="1" fill="currentColor" />
+      <rect x="7.5" y="1" width="5.5" height="5.5" rx="1" fill="currentColor" />
+      <rect x="1" y="7.5" width="5.5" height="5.5" rx="1" fill="currentColor" />
+      <rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+const VIEW_ICONS: Record<ViewMode, React.ReactNode> = {
+  list: <IconList />,
+  compact: <IconCompact />,
+  grid: <IconGrid />,
+};
+const VIEW_LABELS: Record<ViewMode, string> = {
+  list: "清單",
+  compact: "緊湊",
+  grid: "封面格",
+};
+
 export function MyAnimePage() {
   const [list, setList] = useState<UserAnimeWithAnime[] | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<WatchStatus | "all">("all");
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) ?? "list"
+  );
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const reorderTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,6 +116,11 @@ export function MyAnimePage() {
     api.get<UserAnimeWithAnime[]>("/api/my/anime").then(setList).catch(() => setList([]));
   }, []);
 
+  function changeView(v: ViewMode) {
+    setViewMode(v);
+    localStorage.setItem(VIEW_MODE_KEY, v);
+  }
+
   function patchLocal(id: string, fields: Partial<UserAnimeWithAnime>) {
     setList((prev) => prev?.map((i) => (i.id === id ? { ...i, ...fields } : i)) ?? prev);
   }
@@ -72,9 +128,7 @@ export function MyAnimePage() {
     setList((prev) => prev?.filter((i) => i.id !== id) ?? prev);
   }
 
-  function handleDragStart(id: string) {
-    setDragId(id);
-  }
+  function handleDragStart(id: string) { setDragId(id); }
 
   function handleDragOver(e: React.DragEvent, id: string) {
     e.preventDefault();
@@ -84,9 +138,7 @@ export function MyAnimePage() {
   function handleDrop(e: React.DragEvent, targetId: string) {
     e.preventDefault();
     if (!dragId || dragId === targetId || !list) {
-      setDragId(null);
-      setDragOverId(null);
-      return;
+      setDragId(null); setDragOverId(null); return;
     }
     const sorted = sortList(list);
     const fromIdx = sorted.findIndex((i) => i.id === dragId);
@@ -97,9 +149,7 @@ export function MyAnimePage() {
     reordered.splice(toIdx, 0, moved);
     const withOrders = reordered.map((item, i) => ({ ...item, sortOrder: i }));
     setList(withOrders);
-    setDragId(null);
-    setDragOverId(null);
-
+    setDragId(null); setDragOverId(null);
     if (reorderTimeout.current) clearTimeout(reorderTimeout.current);
     reorderTimeout.current = setTimeout(() => {
       void api.patch("/api/my/anime/reorder", {
@@ -108,10 +158,7 @@ export function MyAnimePage() {
     }, 500);
   }
 
-  function handleDragEnd() {
-    setDragId(null);
-    setDragOverId(null);
-  }
+  function handleDragEnd() { setDragId(null); setDragOverId(null); }
 
   const scope = useReveal<HTMLDivElement>([list === null]);
 
@@ -132,22 +179,45 @@ export function MyAnimePage() {
       .some((t) => t?.toLowerCase().includes(q));
   });
 
+  // ponytail: drag only makes sense on full unfiltered list
+  const canDrag = viewMode === "list" && !q && statusFilter === "all";
+
   return (
     <div ref={scope} className="space-y-6">
-      <header data-reveal className="flex items-baseline justify-between">
+      <header data-reveal className="flex items-start justify-between gap-4">
         <div>
           <p className="section-label">我的追番 · {list.length} 部</p>
           <h1 className="mt-1 text-2xl font-semibold text-text">追番清單</h1>
         </div>
-        <Link to="/app/anime/new">
-          <Button variant="ghost">新增動畫</Button>
-        </Link>
+        <div className="flex items-center gap-2 pt-1">
+          {/* View mode toggle */}
+          <div className="flex items-center rounded-lg border border-border/60 p-0.5">
+            {(["list", "compact", "grid"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => changeView(v)}
+                aria-label={VIEW_LABELS[v]}
+                title={VIEW_LABELS[v]}
+                className={[
+                  "rounded-md p-1.5 transition-colors",
+                  viewMode === v ? "bg-surface text-text" : "text-muted hover:text-text",
+                ].join(" ")}
+              >
+                {VIEW_ICONS[v]}
+              </button>
+            ))}
+          </div>
+          <Link to="/app/anime/new">
+            <Button variant="ghost">新增動畫</Button>
+          </Link>
+        </div>
       </header>
 
       {list.length === 0 ? (
         <p data-reveal className="text-muted">清單是空的，先去新增一部動畫</p>
       ) : (
         <div data-reveal className="space-y-4">
+          {/* Search + status filters */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Input
               aria-label="搜尋動畫"
@@ -162,9 +232,7 @@ export function MyAnimePage() {
                 onClick={() => setStatusFilter("all")}
                 className={[
                   "kbd-label rounded-full border px-2.5 py-1 transition-colors",
-                  statusFilter === "all"
-                    ? "border-accent/60 text-accent"
-                    : "border-border/60 hover:border-accent/40",
+                  statusFilter === "all" ? "border-accent/60 text-accent" : "border-border/60 hover:border-accent/40",
                 ].join(" ")}
               >
                 全部 {list.length}
@@ -175,9 +243,7 @@ export function MyAnimePage() {
                   onClick={() => setStatusFilter(statusFilter === g.status ? "all" : g.status)}
                   className={[
                     "kbd-label rounded-full border px-2.5 py-1 transition-colors",
-                    statusFilter === g.status
-                      ? "border-accent/60 text-accent"
-                      : "border-border/60 hover:border-accent/40",
+                    statusFilter === g.status ? "border-accent/60 text-accent" : "border-border/60 hover:border-accent/40",
                   ].join(" ")}
                 >
                   {statusLabel[g.status]} {g.count}
@@ -190,40 +256,57 @@ export function MyAnimePage() {
             <p className="text-sm text-muted">沒有符合條件的動畫</p>
           )}
 
-          <ul className="divide-y divide-border/50 border-y border-border/50">
-            {filteredList.map((item) => (
-              <MyAnimeRow
-                key={item.id}
-                item={item}
-                isDragging={dragId === item.id}
-                isDragOver={dragOverId === item.id}
-                draggable={!q && statusFilter === "all"}
-                onDragStart={() => handleDragStart(item.id)}
-                onDragOver={(e) => handleDragOver(e, item.id)}
-                onDrop={(e) => handleDrop(e, item.id)}
-                onDragEnd={handleDragEnd}
-                onPatch={(f) => patchLocal(item.id, f)}
-                onRemove={() => removeLocal(item.id)}
-              />
-            ))}
-          </ul>
+          {viewMode === "list" && filteredList.length > 0 && (
+            <ul className="divide-y divide-border/50 border-y border-border/50">
+              {filteredList.map((item) => (
+                <MyAnimeRow
+                  key={item.id}
+                  item={item}
+                  isDragging={dragId === item.id}
+                  isDragOver={dragOverId === item.id}
+                  draggable={canDrag}
+                  onDragStart={() => handleDragStart(item.id)}
+                  onDragOver={(e) => handleDragOver(e, item.id)}
+                  onDrop={(e) => handleDrop(e, item.id)}
+                  onDragEnd={handleDragEnd}
+                  onPatch={(f) => patchLocal(item.id, f)}
+                  onRemove={() => removeLocal(item.id)}
+                />
+              ))}
+            </ul>
+          )}
+
+          {viewMode === "compact" && filteredList.length > 0 && (
+            <ul className="divide-y divide-border/40">
+              {filteredList.map((item) => (
+                <MyAnimeCompactRow
+                  key={item.id}
+                  item={item}
+                  onPatch={(f) => patchLocal(item.id, f)}
+                  onRemove={() => removeLocal(item.id)}
+                />
+              ))}
+            </ul>
+          )}
+
+          {viewMode === "grid" && filteredList.length > 0 && (
+            <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+              {filteredList.map((item) => (
+                <MyAnimeGridCard key={item.id} item={item} />
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>
   );
 }
 
+/* ─── List mode row ─────────────────────────────────────────────── */
+
 function MyAnimeRow({
-  item,
-  isDragging,
-  isDragOver,
-  draggable,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
-  onPatch,
-  onRemove,
+  item, isDragging, isDragOver, draggable,
+  onDragStart, onDragOver, onDrop, onDragEnd, onPatch, onRemove,
 }: {
   item: UserAnimeWithAnime;
   isDragging: boolean;
@@ -273,8 +356,8 @@ function MyAnimeRow({
       onDrop={draggable ? onDrop : undefined}
       onDragEnd={draggable ? onDragEnd : undefined}
       className={[
-        "group grid grid-cols-[1.25rem_4.75rem_minmax(0,1fr)] gap-3 py-4",
-        "md:grid-cols-[1.25rem_5.5rem_minmax(0,1fr)] md:gap-5 md:py-5",
+        "group grid grid-cols-[1.25rem_4.5rem_minmax(0,1fr)] gap-3 py-3",
+        "md:grid-cols-[1.25rem_5rem_minmax(0,1fr)] md:gap-4 md:py-4",
         "transition-opacity",
         isDragging ? "opacity-40" : "",
         isDragOver ? "border-t-2 border-accent/60" : "",
@@ -302,7 +385,7 @@ function MyAnimeRow({
       </Link>
 
       <div className="min-w-0 space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="kbd-label rounded-full border border-border/60 px-2 py-0.5">
             {statusLabel[item.status]}
           </span>
@@ -318,7 +401,7 @@ function MyAnimeRow({
             {title}
           </Link>
           {altTitle && <p className="mt-0.5 truncate font-mono text-xs text-muted">{altTitle}</p>}
-          {meta && <p className="mt-1 font-mono text-xs text-muted/80">{meta}</p>}
+          {meta && <p className="mt-0.5 font-mono text-xs text-muted/80">{meta}</p>}
         </div>
 
         {item.anime.description && (
@@ -327,7 +410,7 @@ function MyAnimeRow({
           </p>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs text-muted">看到 EP</span>
             <Input
@@ -345,7 +428,7 @@ function MyAnimeRow({
           <ProgressRail current={Number(episode) || 0} total={total} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 pt-1">
+        <div className="flex flex-wrap items-center gap-2 pt-0.5">
           <Select
             aria-label="狀態"
             value={item.status}
@@ -384,6 +467,140 @@ function MyAnimeRow({
           </button>
         </div>
       </div>
+    </li>
+  );
+}
+
+/* ─── Compact mode row ──────────────────────────────────────────── */
+
+function MyAnimeCompactRow({
+  item, onPatch, onRemove,
+}: {
+  item: UserAnimeWithAnime;
+  onPatch: (f: Partial<UserAnimeWithAnime>) => void;
+  onRemove: () => void;
+}) {
+  const [episode, setEpisode] = useState(String(item.currentEpisode));
+  const [saving, setSaving] = useState(false);
+  const total = item.anime.episodesTotal;
+  const title = animeTitle(item.anime);
+
+  async function save(fields: Partial<Pick<UserAnimeWithAnime, "status" | "currentEpisode">>) {
+    setSaving(true);
+    onPatch(fields);
+    try {
+      await api.patch(`/api/my/anime/${item.id}`, fields);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function commitEpisode() {
+    const n = Math.max(0, Math.floor(Number(episode)) || 0);
+    setEpisode(String(n));
+    if (n !== item.currentEpisode) void save({ currentEpisode: n });
+  }
+
+  async function remove() {
+    if (!confirm(`從追番清單移除「${animeTitle(item.anime)}」？`)) return;
+    await api.del(`/api/my/anime/${item.id}`);
+    onRemove();
+  }
+
+  return (
+    <li className="group flex items-center gap-3 py-2 transition-colors hover:bg-surface/40 -mx-2 px-2 rounded-lg">
+      {/* status */}
+      <Select
+        aria-label="狀態"
+        value={item.status}
+        onChange={(e) => void save({ status: e.target.value as WatchStatus })}
+        className="shrink-0 w-auto py-0.5 pl-2 pr-6 text-xs"
+        disabled={saving}
+      >
+        {WATCH_STATUSES.map((s) => (
+          <option key={s} value={s}>{statusLabel[s]}</option>
+        ))}
+      </Select>
+
+      {/* title */}
+      <Link
+        to={`/app/anime/${item.animeId}`}
+        className="flex-1 min-w-0 truncate text-sm font-medium text-text hover:text-accent"
+      >
+        {title}
+      </Link>
+
+      {/* episode input */}
+      <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+        <span className="font-mono text-xs text-muted">EP</span>
+        <Input
+          aria-label="目前集數"
+          type="number"
+          min={0}
+          value={episode}
+          onChange={(e) => setEpisode(e.target.value)}
+          onBlur={commitEpisode}
+          className="w-12 px-1.5 py-0.5 text-center text-xs"
+        />
+        {total ? <span className="font-mono text-xs text-muted/60">/{total}</span> : null}
+      </div>
+
+      {/* mini progress rail */}
+      <div className="hidden md:block w-20 shrink-0">
+        <ProgressRail current={Number(episode) || 0} total={total} />
+      </div>
+
+      {/* remove */}
+      <button
+        onClick={remove}
+        aria-label="移除"
+        className="shrink-0 text-muted/40 hover:text-accent transition-colors opacity-0 group-hover:opacity-100 text-sm leading-none"
+        disabled={saving}
+      >
+        ×
+      </button>
+    </li>
+  );
+}
+
+/* ─── Grid mode card ────────────────────────────────────────────── */
+
+function MyAnimeGridCard({ item }: { item: UserAnimeWithAnime }) {
+  const title = animeTitle(item.anime);
+  const total = item.anime.episodesTotal;
+
+  return (
+    <li className="group">
+      <Link to={`/app/anime/${item.animeId}`} className="block">
+        <div className="relative overflow-hidden rounded-xl">
+          {item.anime.coverImageUrl ? (
+            <img
+              src={coverUrl(item.anime.coverImageUrl)}
+              alt=""
+              className="aspect-[2/3] w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+            />
+          ) : (
+            <div className="aspect-[2/3] w-full bg-panel/70 border border-border/60 rounded-xl flex items-center justify-center text-xs text-muted">
+              無封面
+            </div>
+          )}
+          {/* gradient overlay */}
+          <div className="absolute inset-x-0 bottom-0 rounded-b-xl bg-gradient-to-t from-black/75 via-black/25 to-transparent px-2 pb-2 pt-6">
+            <p className="text-xs font-medium text-white/95 line-clamp-2 leading-snug">{title}</p>
+            <div className="mt-1 flex items-center justify-between gap-1">
+              <span className="font-mono text-[10px] text-white/55 shrink-0">
+                EP {item.currentEpisode}{total ? `/${total}` : ""}
+              </span>
+              <span className="kbd-label text-[10px] text-white/55 truncate">
+                {statusLabel[item.status]}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="mt-1.5">
+          <ProgressRail current={item.currentEpisode} total={total} />
+        </div>
+      </Link>
     </li>
   );
 }
