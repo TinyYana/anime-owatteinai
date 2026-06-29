@@ -540,7 +540,7 @@ function MyAnimeCompactRow({
           value={episode}
           onChange={(e) => setEpisode(e.target.value)}
           onBlur={commitEpisode}
-          className="w-12 px-1.5 py-0.5 text-center text-xs"
+          className="w-16 px-1.5 py-0.5 text-center text-xs"
         />
         {total ? <span className="font-mono text-xs text-muted/60">/{total}</span> : null}
       </div>
