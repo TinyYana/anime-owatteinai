@@ -190,6 +190,8 @@ export interface UserAnime {
 /** A user_anime row joined with its anime for list/dashboard rendering. */
 export interface UserAnimeWithAnime extends UserAnime {
   anime: Anime;
+  /** 該動畫的觀看入口（/api/my/anime 會附上；其他端點可能省略） */
+  sourceLinks?: Pick<SourceLink, "id" | "type" | "label" | "url">[];
 }
 
 export interface SourceLink {

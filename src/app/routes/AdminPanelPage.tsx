@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { fmtDate, fmtDateTime } from "../lib/date";
-import { Panel, Button, Badge, Loading, Input, Select, Textarea } from "../components/ui";
+import { Button, Badge, Loading, Input, Select, Textarea } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import { hasPermission, useAuth } from "../lib/auth";
 import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_LEVELS, ROLE_PERMISSION_DESCRIPTIONS, ROLE_PERMISSION_LABELS, ROLE_PERMISSIONS, USER_ROLES } from "../../shared/types";
@@ -77,6 +77,25 @@ const ANNOUNCEMENT_AUDIENCE_LABEL: Record<AnnouncementAudience, string> = {
   member: "成員",
   admin: "管理員",
 };
+
+// 只會越長越長的列表用：先顯示一段，按「顯示更多」再往下展開
+function useShowMore<T>(items: T[] | null, step: number) {
+  const [limit, setLimit] = useState(step);
+  return {
+    visible: items?.slice(0, limit) ?? null,
+    hasMore: (items?.length ?? 0) > limit,
+    more: () => setLimit((l) => l + step),
+  };
+}
+
+function ShowMore({ hasMore, onMore }: { hasMore: boolean; onMore: () => void }) {
+  if (!hasMore) return null;
+  return (
+    <div className="pt-3">
+      <Button variant="ghost" className="!py-1.5 text-xs" onClick={onMore}>顯示更多</Button>
+    </div>
+  );
+}
 
 function metaText(meta: Record<string, unknown>, key: string) {
   const value = meta[key];
@@ -184,6 +203,11 @@ export function AdminPanelPage() {
     startsAt: "",
     endsAt: "",
   });
+  const [editFilter, setEditFilter] = useState<"pending" | "all">("pending");
+  const filteredEdits = editRequests?.filter((r) => editFilter === "all" || r.status === "pending") ?? null;
+  const edits = useShowMore(filteredEdits, 20);
+  const activityList = useShowMore(activity, 30);
+  const auditList = useShowMore(auditLogs, 50);
   const canManageRoles = hasPermission(me, "roles.manage");
   const canManageUsers = hasPermission(me, "users.manage");
   const canManageAnnouncements = me?.role === "owner" || me?.role === "admin";
@@ -396,17 +420,17 @@ export function AdminPanelPage() {
       </nav>
 
       {tab === "stats" && (
-        <div data-reveal className="space-y-6">
+        <div data-reveal className="space-y-8">
           {stats === null ? <Loading /> : (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard label="總使用者" value={stats.users.total} />
-                <StatCard label="正式成員" value={stats.users.total - stats.users.pending - stats.users.banned} tone="signal" />
-                <StatCard label="動畫作品" value={stats.animeTotal} />
-                <StatCard label="待審編輯" value={stats.pendingEditRequests} tone="accent" />
-              </div>
+              <section className="grid grid-cols-2 gap-x-6 gap-y-5 border-y border-border/50 py-5 sm:grid-cols-4">
+                <Stat label="總使用者" value={stats.users.total} />
+                <Stat label="正式成員" value={stats.users.total - stats.users.pending - stats.users.banned} tone="signal" />
+                <Stat label="動畫作品" value={stats.animeTotal} />
+                <Stat label="待審編輯" value={stats.pendingEditRequests} tone="accent" />
+              </section>
 
-              <Panel className="space-y-3">
+              <section className="space-y-2">
                 <p className="section-label">使用者分布</p>
                 <div className="flex flex-wrap gap-2 text-sm">
                   <span className="text-muted">管理員 <span className="text-signal font-mono">{stats.users.admins}</span></span>
@@ -415,9 +439,9 @@ export function AdminPanelPage() {
                   <span className="text-muted">· 待審核 <span className="text-text font-mono">{stats.users.pending}</span></span>
                   <span className="text-muted">· 封鎖 <span className="text-accent font-mono">{stats.users.banned}</span></span>
                 </div>
-              </Panel>
+              </section>
 
-              <Panel className="space-y-3">
+              <section className="space-y-3 border-t border-border/40 pt-6">
                 <p className="section-label">資料維護</p>
                 <p className="text-sm text-muted">將 DB 中舊的 AniList 封面縮圖（medium 尺寸，約 115px）升級為 large（約 230px）。執行一次即可，重複執行無害。</p>
                 <div className="flex flex-wrap items-center gap-3">
@@ -441,7 +465,7 @@ export function AdminPanelPage() {
                   </Button>
                   {backfillResult && <p className="text-xs text-signal">{backfillResult}</p>}
                 </div>
-              </Panel>
+              </section>
 
             </>
           )}
@@ -530,12 +554,28 @@ export function AdminPanelPage() {
 
       {tab === "edits" && (
         <div data-reveal className="space-y-3">
-          {editRequests === null ? <Loading /> : editRequests.length === 0 ? (
-            <p className="text-muted">目前沒有動畫編輯提案。</p>
+          {editRequests !== null && editRequests.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {([["pending", "待審"], ["all", "全部"]] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setEditFilter(value)}
+                  className={[
+                    "kbd-label rounded-full border px-2.5 py-1 transition-colors",
+                    editFilter === value ? "border-accent/60 text-accent" : "border-border/60 hover:border-accent/40",
+                  ].join(" ")}
+                >
+                  {label} {value === "pending" ? editRequests.filter((r) => r.status === "pending").length : editRequests.length}
+                </button>
+              ))}
+            </div>
+          )}
+          {editRequests === null ? <Loading /> : filteredEdits?.length === 0 ? (
+            <p className="text-muted">{editFilter === "pending" ? "沒有待審的動畫編輯提案。" : "目前沒有動畫編輯提案。"}</p>
           ) : (
-            <ul className="space-y-3">
-              {editRequests.map((r) => (
-                <Panel key={r.id} className="space-y-3">
+            <ul className="divide-y divide-border/40 border-y border-border/40">
+              {edits.visible?.map((r) => (
+                <li key={r.id} className="space-y-3 py-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <Link to={`/app/anime/${r.animeId}`} className="font-medium text-text hover:text-accent">
@@ -581,10 +621,11 @@ export function AdminPanelPage() {
                       </div>
                     </>
                   )}
-                </Panel>
+                </li>
               ))}
             </ul>
           )}
+          <ShowMore hasMore={edits.hasMore} onMore={edits.more} />
         </div>
       )}
 
@@ -594,7 +635,7 @@ export function AdminPanelPage() {
             <p className="text-muted">沒有觀看紀錄。</p>
           ) : (
             <ul className="divide-y divide-border/40 border-y border-border/40">
-              {activity.map((a) => (
+              {activityList.visible?.map((a) => (
                 <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                   <div className="min-w-0">
                     <Link to={`/app/anime/${a.animeId}`} className="text-text hover:text-accent transition-colors">
@@ -609,6 +650,7 @@ export function AdminPanelPage() {
               ))}
             </ul>
           )}
+          <ShowMore hasMore={activityList.hasMore} onMore={activityList.more} />
         </div>
       )}
 
@@ -619,7 +661,7 @@ export function AdminPanelPage() {
             <p className="text-muted">沒有審計紀錄。</p>
           ) : (
             <ul className="divide-y divide-border/40 border-y border-border/50">
-              {auditLogs.map((row) => {
+              {auditList.visible?.map((row) => {
                 const item = describeAudit(row);
                 return (
                   <li key={row.id} className="py-3 text-sm">
@@ -640,6 +682,7 @@ export function AdminPanelPage() {
               })}
             </ul>
           )}
+          <ShowMore hasMore={auditList.hasMore} onMore={auditList.more} />
         </div>
       )}
 
@@ -775,8 +818,8 @@ export function AdminPanelPage() {
       )}
 
       {tab === "test" && (
-        <div data-reveal className="space-y-4">
-          <Panel className="space-y-3">
+        <div data-reveal className="space-y-8">
+          <section className="space-y-3">
             <p className="section-label">建立測試場景</p>
             <p className="text-sm text-muted">建立帶有假 Discord ID 的測試用戶，用來驗證各頁面與流程正常運作。完成後用下方清除按鈕刪除。</p>
             <div className="flex flex-wrap gap-2">
@@ -796,9 +839,9 @@ export function AdminPanelPage() {
             <p className="text-xs text-muted">
               「申請流程」：在審核申請頁測試 approve / reject。「成員流程」：測試成員頁面與追番功能。
             </p>
-          </Panel>
+          </section>
 
-          <Panel className="space-y-3">
+          <section className="space-y-3 border-t border-border/40 pt-6">
             <div className="flex items-center justify-between">
               <p className="section-label">目前測試用戶</p>
               <Button variant="ghost" className="!py-1 !px-2 text-xs" onClick={() => setTestUsers(null)}>
@@ -820,9 +863,9 @@ export function AdminPanelPage() {
                 ))}
               </ul>
             )}
-          </Panel>
+          </section>
 
-          <Panel className="space-y-3">
+          <section className="space-y-3 border-t border-border/40 pt-6">
             <p className="section-label">清除測試資料</p>
             <p className="text-sm text-muted">刪除所有測試用戶及其相關資料（申請、追番紀錄等）。不可復原。</p>
             <Button
@@ -832,13 +875,13 @@ export function AdminPanelPage() {
             >
               清除所有測試資料 {testUsers !== null && testUsers.length > 0 ? `(${testUsers.length})` : ""}
             </Button>
-          </Panel>
+          </section>
         </div>
       )}
 
       {tab === "discord" && (
-        <div data-reveal className="space-y-4">
-          <Panel className="space-y-3">
+        <div data-reveal className="space-y-8">
+          <section className="space-y-3">
             <p className="section-label">設定狀態</p>
             {discordStatus === null ? <Loading /> : (
               <ul className="space-y-1.5 text-sm">
@@ -852,9 +895,9 @@ export function AdminPanelPage() {
               未設定的項目請在 <span className="font-mono">.dev.vars</span>（本地）或 <span className="font-mono">wrangler.jsonc vars</span>（非機密）填入。
               Bot Token 在 Discord Developer Portal → Bot → Token。
             </p>
-          </Panel>
+          </section>
 
-          <Panel className="space-y-3">
+          <section className="space-y-3 border-t border-border/40 pt-6">
             <p className="section-label">個人化通知</p>
             <p className="text-sm text-muted">
               開啟每日私訊的成員，會收到依自己的追番清單、優先度與最近觀看紀錄整理的簡報。
@@ -863,9 +906,9 @@ export function AdminPanelPage() {
             <p className="text-xs text-muted">
               成員在設定頁自行開啟每日私訊並寄送測試訊息；沒開啟的人不會收到任何自動通知。
             </p>
-          </Panel>
+          </section>
 
-          <Panel className="space-y-3">
+          <section className="space-y-3 border-t border-border/40 pt-6">
             <p className="section-label">Slash 指令</p>
             <p className="text-sm text-muted">
               將 <span className="font-mono">/anime</span>（today / watching / share）指令註冊到 Discord，
@@ -899,15 +942,15 @@ export function AdminPanelPage() {
               Discord Developer Portal 的 OAuth2 Redirects 是登入 callback，應填 <span className="font-mono">/api/auth/discord/callback</span>。
               Slash command 的 HTTP 入口要填在 General Information → Interactions Endpoint URL：<span className="font-mono">{window.location.origin}/api/discord/interactions</span>。
             </p>
-          </Panel>
+          </section>
 
-          <Panel className="space-y-2">
+          <section className="space-y-2 border-t border-border/40 pt-6">
             <p className="section-label">每日摘要 Cron</p>
             <p className="text-sm text-muted">
               每天 09:00 UTC 自動把社群追番動態發到 <span className="font-mono">DISCORD_NOTIFICATION_CHANNEL_ID</span> 指定頻道。
               Bot 必須在該頻道有發送訊息的權限；摘要只會列出成員主動公開的追番紀錄。個人 DM 只寄給已開啟每日私訊的成員。
             </p>
-          </Panel>
+          </section>
         </div>
       )}
     </div>
@@ -947,13 +990,13 @@ function RolePermissionsEditor({
   onToggle: (role: UserRole, permission: RolePermission, checked: boolean) => void;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="divide-y divide-border/40 border-y border-border/40">
       {USER_ROLES.map((role) => {
         const config = configs.find((item) => item.role === role);
         const enabled = new Set(config?.permissions ?? []);
         const locked = role === "owner" || !canManage;
         return (
-          <Panel key={role} className="space-y-3">
+          <section key={role} className="space-y-3 py-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Badge tone={ROLE_TONE[role]}>{ROLE_LABEL[role]}</Badge>
@@ -963,9 +1006,9 @@ function RolePermissionsEditor({
               {role !== "owner" && !canManage && <span className="text-xs text-muted">沒有身份權限編輯權限</span>}
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
               {ROLE_PERMISSIONS.map((permission) => (
-                <label key={permission} className="flex items-start gap-2.5 rounded-lg border border-border/40 px-3 py-2 text-sm">
+                <label key={permission} className="flex items-start gap-2.5 text-sm">
                   <input
                     type="checkbox"
                     className="mt-1 accent-[var(--color-accent)]"
@@ -982,14 +1025,14 @@ function RolePermissionsEditor({
                 </label>
               ))}
             </div>
-          </Panel>
+          </section>
         );
       })}
     </div>
   );
 }
 
-function StatCard({
+function Stat({
   label,
   value,
   tone = "muted",
@@ -1000,9 +1043,9 @@ function StatCard({
 }) {
   const color = tone === "accent" ? "text-accent" : tone === "signal" ? "text-signal" : "text-text";
   return (
-    <Panel className="space-y-1">
+    <div className="space-y-1">
       <p className="section-label">{label}</p>
       <p className={`text-2xl font-semibold font-mono ${color}`}>{value}</p>
-    </Panel>
+    </div>
   );
 }

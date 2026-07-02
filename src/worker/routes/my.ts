@@ -78,7 +78,24 @@ myAnimeRoutes.get("/", async (c) => {
     .innerJoin(anime, eq(userAnime.animeId, anime.id))
     .where(eq(userAnime.userId, c.get("user").id))
     .orderBy(asc(userAnime.sortOrder), desc(userAnime.updatedAt));
-  return c.json(rows);
+
+  // 一併帶回每部動畫的觀看入口，讓清單頁可以直接點開去看
+  const animeIds = rows.map((r) => r.animeId);
+  const links = animeIds.length === 0
+    ? []
+    : await db
+        .select()
+        .from(sourceLinks)
+        .where(inArray(sourceLinks.animeId, animeIds))
+        .orderBy(asc(sourceLinks.createdAt));
+  const linksByAnime = new Map<string, typeof links>();
+  for (const link of links) {
+    const list = linksByAnime.get(link.animeId);
+    if (list) list.push(link);
+    else linksByAnime.set(link.animeId, [link]);
+  }
+
+  return c.json(rows.map((r) => ({ ...r, sourceLinks: linksByAnime.get(r.animeId) ?? [] })));
 });
 
 myAnimeRoutes.post("/", async (c) => {

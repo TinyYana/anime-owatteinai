@@ -1,6 +1,6 @@
 {
   "name": "anime-owatteinai",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "追番進行式 — a private, application-gated anime watch-tracker for the 彼岸花 Discord community.",
@@ -32,13 +32,6 @@
   },
   "overrides": {
     "esbuild": ">=0.25.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp",
-      "workerd"
-    ]
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",

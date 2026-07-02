@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { api, ApiError, coverUrl } from "../lib/api";
 import { Button, Field, Input, ErrorText } from "../components/ui";
-import type { Anime, AnimeSearchCandidate, AnimeSearchResult, WatchStatus } from "../../shared/types";
+import type { Anime, AnimeSearchCandidate, AnimeSearchResult, CommunitySummary, CommunitySummaryItem, WatchStatus } from "../../shared/types";
 
 gsap.registerPlugin(useGSAP);
 
@@ -39,6 +39,19 @@ export function AddAnimePage() {
   const [addToList, setAddToList] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // 搜尋前的預設推薦：社群在追的 + 資料庫最近收錄的，避免頁面空蕩蕩
+  const [trending, setTrending] = useState<CommunitySummaryItem[]>([]);
+  const [recent, setRecent] = useState<Anime[]>([]);
+
+  useEffect(() => {
+    api.get<CommunitySummary>("/api/community/summary")
+      .then((s) => setTrending(s.trendingAnime))
+      .catch(() => undefined);
+    api.get<Anime[]>("/api/anime")
+      .then((rows) => setRecent(rows.slice(0, 8)))
+      .catch(() => undefined);
+  }, []);
 
   useGSAP(
     () => {
@@ -150,6 +163,71 @@ export function AddAnimePage() {
           </form>
 
           {searchError && <ErrorText>{searchError}</ErrorText>}
+
+          {!results && !searching && (trending.length > 0 || recent.length > 0) && (
+            <div className="space-y-5">
+              {trending.length > 0 && (
+                <section>
+                  <p className="section-label mb-2">社群在追</p>
+                  <div className="flex flex-wrap gap-2">
+                    {trending.map((t) => (
+                      <Link
+                        key={t.animeId}
+                        to={`/app/anime/${t.animeId}`}
+                        className="kbd-label rounded-full border border-border/60 px-2.5 py-1 transition-colors hover:border-accent/40 hover:text-accent"
+                      >
+                        {t.titleZh || t.title}
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {recent.length > 0 && (
+                <section>
+                  <p className="section-label mb-2">資料庫已收錄</p>
+                  <ul className="divide-y divide-border/50 border-y border-border/50">
+                    {recent.map((a) => (
+                      <li key={a.id} className="flex items-center gap-3 py-3">
+                        {a.coverImageUrl && (
+                          <img
+                            src={coverUrl(a.coverImageUrl)}
+                            alt=""
+                            className="h-12 w-9 shrink-0 rounded-lg object-cover"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            to={`/app/anime/${a.id}`}
+                            className="block truncate text-sm font-medium text-text hover:text-accent"
+                          >
+                            {a.titleZh || a.title}
+                          </Link>
+                          <p className="font-mono text-xs text-muted">
+                            {[
+                              a.format && FORMAT_LABEL[a.format],
+                              a.seasonYear && a.season
+                                ? `${a.seasonYear} ${SEASON_LABEL[a.season] ?? a.season}`
+                                : a.seasonYear,
+                              a.episodesTotal && `${a.episodesTotal} 集`,
+                            ].filter(Boolean).join(" · ")}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          className="shrink-0 !py-1 text-xs"
+                          disabled={addingId === a.id}
+                          onClick={() => quickAddToList(a.id)}
+                        >
+                          {addingId === a.id ? "加入中…" : "+ 加入追番"}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          )}
 
           {results && (
             <div className="space-y-5">

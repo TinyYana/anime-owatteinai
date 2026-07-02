@@ -89,7 +89,7 @@ export function ProgressRail({ current, total }: Readonly<{ current: number; tot
 }
 
 /** Watch-launch buttons — open a curated source link in a new tab. */
-export function SourceLinkButtons({ links }: Readonly<{ links: SourceLink[] }>) {
+export function SourceLinkButtons({ links }: Readonly<{ links: Pick<SourceLink, "id" | "label" | "url">[] }>) {
   if (links.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2">

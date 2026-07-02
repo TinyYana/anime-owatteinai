@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, coverUrl } from "../lib/api";
-import { Button, Select, Input, Loading, ProgressRail } from "../components/ui";
+import { Button, Select, Input, Loading, ProgressRail, SourceLinkButtons } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import { WATCH_STATUSES, ANIME_PRIORITIES } from "../../shared/types";
 import type { UserAnimeWithAnime, WatchStatus, AnimePriority } from "../../shared/types";
@@ -423,13 +423,15 @@ function MyAnimeRow({
               value={episode}
               onChange={(e) => setEpisode(e.target.value)}
               onBlur={commitEpisode}
-              className="w-14 px-2 py-1 text-center text-xs"
+              className="w-16 px-2 py-1 text-center text-xs"
             />
             {total ? <span className="font-mono text-xs text-muted">/ {total}</span> : null}
             <span className="ml-auto font-mono text-xs text-muted">接著 EP{(Number(episode) || 0) + 1}</span>
           </div>
           <ProgressRail current={Number(episode) || 0} total={total} />
         </div>
+
+        <WatchEntrances links={item.sourceLinks} />
 
         <div className="flex flex-wrap items-center gap-2 pt-0.5">
           <Select
@@ -526,12 +528,15 @@ function MyAnimeCompactRow({
       </Select>
 
       {/* title */}
-      <Link
-        to={`/app/anime/${item.animeId}`}
-        className="min-w-0 truncate text-sm font-medium text-text hover:text-accent"
-      >
-        {title}
-      </Link>
+      <div className="min-w-0">
+        <Link
+          to={`/app/anime/${item.animeId}`}
+          className="block truncate text-sm font-medium text-text hover:text-accent"
+        >
+          {title}
+        </Link>
+        <WatchEntrances links={item.sourceLinks} compact />
+      </div>
 
       {/* episode input — fixed width column, hidden on mobile */}
       <div className="hidden sm:flex items-center gap-1.5 justify-end">
@@ -543,7 +548,7 @@ function MyAnimeCompactRow({
           value={episode}
           onChange={(e) => setEpisode(e.target.value)}
           onBlur={commitEpisode}
-          className="w-14 px-1.5 py-0.5 text-center text-xs shrink-0"
+          className="w-16 px-1.5 py-0.5 text-center text-xs shrink-0"
         />
         <span className="font-mono text-xs text-muted/60 shrink-0 w-8 text-left truncate">
           {total ? `/${total}` : ""}
@@ -622,6 +627,38 @@ function MyAnimeGridCard({ item }: { item: UserAnimeWithAnime }) {
           <ProgressRail current={item.currentEpisode} total={total} />
         </div>
       </Link>
+      <WatchEntrances links={item.sourceLinks} compact />
     </li>
   );
+}
+
+function WatchEntrances({
+  links,
+  compact = false,
+}: {
+  links?: UserAnimeWithAnime["sourceLinks"];
+  compact?: boolean;
+}) {
+  if (!links || links.length === 0) return null;
+  if (compact) {
+    return (
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {links.slice(0, 2).map((link) => (
+          <a
+            key={link.id}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            onClick={(event) => event.stopPropagation()}
+            className="kbd-label inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-[10px] transition-colors hover:border-accent/50 hover:text-accent"
+          >
+            <span aria-hidden="true">▶</span>
+            {link.label}
+          </a>
+        ))}
+        {links.length > 2 && <span className="kbd-label text-[10px] text-muted">+{links.length - 2}</span>}
+      </div>
+    );
+  }
+  return <SourceLinkButtons links={links} />;
 }

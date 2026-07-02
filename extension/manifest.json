@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "追番進行式",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "自動偵測動畫瘋、anime1 觀看進度，同步到追番進行式。",
   "permissions": ["cookies", "storage"],
   "host_permissions": ["http://localhost:8787/*", "https://*/*"],

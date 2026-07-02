@@ -153,6 +153,17 @@ body::before {
   color: var(--color-muted);
 }
 
+/* 集數輸入框都很窄，瀏覽器的數字上下箭頭會把數字擠到被裁掉，全域關掉 */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* Progress rail — the product's signature "看到哪" marker */
 .rail {
   height: 4px;

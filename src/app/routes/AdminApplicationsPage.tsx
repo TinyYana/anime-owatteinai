@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { fmtDate, fmtDateTime } from "../lib/date";
-import { Panel, Button, Badge, Loading, Textarea } from "../components/ui";
+import { Button, Badge, Loading, Textarea } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import type { AccessApplicationReviewRecord, AccessApplicationWithUser } from "../../shared/types";
 
@@ -10,6 +10,7 @@ export function AdminApplicationsPage() {
   const [reviewed, setReviewed] = useState<AccessApplicationReviewRecord[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [reviewReasons, setReviewReasons] = useState<Record<string, string>>({});
+  const [reviewedLimit, setReviewedLimit] = useState(20);
 
   function load() {
     api.get<AccessApplicationWithUser[]>("/api/admin/applications").then(setApps).catch(() => setApps([]));
@@ -49,9 +50,9 @@ export function AdminApplicationsPage() {
       {apps.length === 0 ? (
         <p data-reveal className="text-muted">目前沒有待審核的申請</p>
       ) : (
-        <ul className="space-y-3">
+        <ul data-reveal className="divide-y divide-border/40 border-y border-border/40">
           {apps.map((app) => (
-            <Panel key={app.id} data-reveal className="space-y-3">
+            <li key={app.id} className="space-y-3 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-text">{app.user.discordGlobalName ?? app.user.discordUsername}</div>
@@ -81,7 +82,7 @@ export function AdminApplicationsPage() {
                   拒絕
                 </Button>
               </div>
-            </Panel>
+            </li>
           ))}
         </ul>
       )}
@@ -95,7 +96,7 @@ export function AdminApplicationsPage() {
           <p className="text-muted">還沒有審核紀錄</p>
         ) : (
           <ul className="divide-y divide-border/40 border-y border-border/40">
-            {reviewed.map((item) => (
+            {reviewed.slice(0, reviewedLimit).map((item) => (
               <li key={item.id} className="py-3 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -119,6 +120,11 @@ export function AdminApplicationsPage() {
               </li>
             ))}
           </ul>
+        )}
+        {reviewed !== null && reviewed.length > reviewedLimit && (
+          <Button variant="ghost" className="!py-1.5 text-xs" onClick={() => setReviewedLimit((l) => l + 20)}>
+            顯示更多
+          </Button>
         )}
       </section>
     </div>
