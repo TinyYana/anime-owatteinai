@@ -1,12 +1,18 @@
-# 追番進行式 · AnimeOwatteiNai
-
 <p align="center">
-  <img src="public/logo-nobg.png" alt="追番進行式 Logo" width="120" />
+  <img src="public/logo-nobg.png" alt="追番進行式 Logo" width="260" />
 </p>
 
-> 追番永遠追不完，所以讓系統記得你看到哪。
+<h1 align="center">追番進行式 · AnimeOwatteiNai</h1>
 
-彼岸花 Discord 社群限定、申請制的追番管理中樞。Discord 登入、成員審核、追番進度、觀看入口就這樣。沒有播放器、沒有 AI 推薦。
+<p align="center">「上次看到第幾集來著？」交給它記就好。</p>
+
+<p align="center">
+  <img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare_Workers-F38020?logo=cloudflareworkers&logoColor=white" />
+  <img alt="React 18" src="https://img.shields.io/badge/React_18-087EA4?logo=react&logoColor=white" />
+  <img alt="License: TYUSL v1.0" src="https://img.shields.io/badge/License-TYUSL_v1.0-9586b0" />
+</p>
+
+彼岸花 Discord 社群限定、申請制的追番工具。Discord 登入、成員審核、追番進度、觀看入口，就這樣。沒有播放器、沒有 AI 推薦。
 
 `source_links` 只存使用者貼進來的 URL，系統不去抓連結背後的東西。
 
@@ -17,6 +23,18 @@
 Discord 頻道的追番記錄散落在訊息裡，找不回來，也沒辦法知道群組整體在看什麼。做一個給自己人用的內部工具比找現有服務再適配容易得多。
 
 申請制不是為了麻煩人，是因為開放就會變成維護負擔。
+
+---
+
+## 功能
+
+- **接著看**：進入 App 直接看到下一集是哪部的第幾集，一鍵標記看完
+- **追番清單**：進行中／想看／暫停／完結，支援搜尋、狀態篩選與三種檢視模式
+- **觀看入口**：每部作品掛上動畫瘋、anime1 等連結，點了就去看
+- **作品資料自動抓**：AniList 為主，Bangumi 補中文名，Jikan 備援
+- **瀏覽器插件**：在動畫瘋 / anime1.me 看完一集，進度自動同步回來
+- **Discord 整合**：每日追番簡報 DM（opt-in）、社群公開動態摘要、`/anime` 查詢指令
+- **公告與通知**：站內公告支援 Markdown，通知在導覽列直接展開看
 
 ---
 
@@ -206,10 +224,13 @@ pnpm deploy       # pnpm build && wrangler deploy
 
 ## 瀏覽器插件安裝
 
-1. Chrome / Edge → `chrome://extensions`
-2. 右上角開啟「開發人員模式」
-3. 「載入未封裝項目」→ 選 `extension/` 目錄
-4. 點工具列圖示 → 開啟設定 → 填入 Workers 網址（例如 `https://your-domain.com`）→ 儲存 → 測試連線
+1. 下載原始碼：`git clone` 或 GitHub 頁面「Code → Download ZIP」解壓縮
+2. Chrome / Edge → `chrome://extensions`
+3. 右上角開啟「開發人員模式」
+4. 「載入未封裝項目」→ 選 `extension/` 目錄
+5. 點工具列圖示 → 開啟設定 → 填入 Workers 網址（例如 `https://your-domain.com`）→ 儲存 → 測試連線
+
+安裝前記得先在網站上完成 Discord 登入，插件才讀得到登入狀態。
 
 **支援平台：** 巴哈姆特動畫瘋（`ani.gamer.com.tw`）、anime1.me
 
@@ -231,20 +252,28 @@ pnpm deploy       # pnpm build && wrangler deploy
 
 ---
 
-## 角色
+## 角色與權限
 
 ```
 owner > admin > moderator > member > pending > banned
 ```
 
-- `pending`：只能查申請狀態、送申請
-- `member`：追番、記錄觀看、送 edit request
-- `moderator`：預設可審核申請、管理動畫資料、查看審計紀錄
-- `admin`：審核申請、管理 source link、alias、anime
-- `owner`：全部，且不會被角色權限設定移除權限
-- `banned`：什麼都不行，session 也立即失效
+權限是「身份 × 權限」矩陣，管理後台的「身份權限」分頁可以即時調整。每項權限對應的功能：
 
-Admin Panel 的「身份權限」分頁可調整各身份實際擁有哪些權限。
+| 權限 | 解鎖的功能 |
+|---|---|
+| `app.access` | 基本門檻。追番清單、觀看紀錄、新增觀看入口、社群動態、作品短評 |
+| `admin.access` | 打開「管理後台」頁面。只是入口，實際操作看以下個別權限 |
+| `applications.review` | 導覽列出現「審核」，可通過或拒絕加入申請 |
+| `users.manage` | 調整別人的身份：升降身份、封鎖、解封 |
+| `roles.manage` | 編輯權限矩陣本身 |
+| `anime.manage` | 直接編輯動畫資料、審核編輯提案、刪除觀看入口與別名、合併重複作品 |
+| `audit.view` | 查看後台「審計」分頁的管理操作紀錄 |
+
+預設值：`member` 只有 `app.access`；`moderator` 多了審核申請、管理動畫、審計；`admin` 全部；`owner` 固定全部且不可被移除。公告管理不在矩陣內，固定只有 `admin` / `owner` 可用。
+
+- `pending`：只能查申請狀態、送申請。登入後 7 天內沒送出申請、也沒有任何資料的帳號會被每日排程自動清除
+- `banned`：什麼都不行，session 立即失效
 
 ---
 
@@ -267,7 +296,7 @@ Session 是 stateless HMAC-SHA256 簽章 cookie，每個 request 都重載使用
 
 Rate limiting 保護了 search、import、watch session、申請送出、OAuth callback。Audit log 記錄敏感操作，IP 只存 hash 不存明文。
 
-手動測試步驟在 `docs/security-test-checklist.md`。
+公告內容經 react-markdown 渲染，預設不輸出原始 HTML、危險 URL 會被淨化。
 
 ---
 
