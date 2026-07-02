@@ -112,7 +112,7 @@ announcementRoutes.post("/admin/announcements", async (c) => {
         type: "announcement",
         title: inserted.title,
         body: inserted.content,
-        linkUrl: "/app",
+        linkUrl: null,
       })));
   }
 

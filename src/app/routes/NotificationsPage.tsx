@@ -1,16 +1,28 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import { api } from "../lib/api";
 import { fmtDate } from "../lib/date";
 import { Button, Loading } from "../components/ui";
-import { useReveal } from "../lib/motion";
+import { useReveal, EASE, DUR } from "../lib/motion";
+import { Markdown } from "../lib/markdown";
 import type { Notification } from "../../shared/types";
 
+gsap.registerPlugin(useGSAP);
+
 type NotificationResponse = { items: Notification[]; unreadCount: number };
+
+// 公告類通知的 linkUrl 歷史上指向 /app，點了只會回 dashboard——一律忽略，
+// 內容直接在列表裡展開閱讀。
+function externalLink(item: Notification): string | null {
+  return item.type === "announcement" ? null : item.linkUrl;
+}
 
 export function NotificationsPage() {
   const [items, setItems] = useState<Notification[] | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const scope = useReveal<HTMLDivElement>([items === null]);
 
   function load() {
@@ -25,6 +37,20 @@ export function NotificationsPage() {
 
   useEffect(load, []);
 
+  useGSAP(
+    () => {
+      if (!expandedId || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      gsap.from("[data-expand]", {
+        opacity: 0,
+        y: -4,
+        duration: DUR.quick,
+        ease: EASE,
+        clearProps: "opacity,transform",
+      });
+    },
+    { scope, dependencies: [expandedId] },
+  );
+
   async function read(id: string) {
     await api.post(`/api/my/notifications/${id}/read`);
     load();
@@ -33,6 +59,12 @@ export function NotificationsPage() {
   async function readAll() {
     await api.post("/api/my/notifications/read-all");
     load();
+  }
+
+  function toggle(item: Notification) {
+    const next = expandedId === item.id ? null : item.id;
+    setExpandedId(next);
+    if (next && !item.isRead) void read(item.id);
   }
 
   if (items === null) return <Loading />;
@@ -51,37 +83,53 @@ export function NotificationsPage() {
         <p data-reveal className="text-muted">目前沒有通知</p>
       ) : (
         <ul data-reveal className="divide-y divide-border/40 border-y border-border/50">
-          {items.map((item) => (
-            <li key={item.id} className="grid gap-2 py-3 text-sm md:grid-cols-[minmax(0,1fr)_8rem_5rem] md:items-center">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  {!item.isRead && <span className="h-2 w-2 rounded-full bg-accent" aria-label="未讀" />}
-                  {item.linkUrl ? (
-                    <a
-                      href={item.linkUrl}
-                      onClick={() => void read(item.id)}
-                      className="font-medium text-text transition-colors hover:text-accent"
+          {items.map((item) => {
+            const expanded = expandedId === item.id;
+            const link = externalLink(item);
+            return (
+              <li key={item.id} className="py-3 text-sm">
+                <button
+                  type="button"
+                  onClick={() => toggle(item)}
+                  aria-expanded={expanded}
+                  className="flex w-full items-start justify-between gap-3 text-left"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    {!item.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="未讀" />}
+                    <span className={`font-medium text-text ${expanded ? "" : "truncate"}`}>{item.title}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <time className="font-mono text-xs text-muted">{fmtDate(item.createdAt)}</time>
+                    <span
+                      className={`text-muted transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
+                      aria-hidden="true"
                     >
-                      {item.title}
-                    </a>
-                  ) : (
-                    <span className="font-medium text-text">{item.title}</span>
-                  )}
-                </div>
-                {item.body && <p className="mt-1 truncate text-muted">{item.body}</p>}
-              </div>
-              <time className="font-mono text-xs text-muted md:text-right">
-                {fmtDate(item.createdAt)}
-              </time>
-              {item.isRead ? (
-                <span className="text-xs text-muted md:text-right">已讀</span>
-              ) : (
-                <button onClick={() => read(item.id)} className="text-xs text-accent md:text-right">
-                  標為已讀
+                      ›
+                    </span>
+                  </span>
                 </button>
-              )}
-            </li>
-          ))}
+
+                {!expanded && item.body && (
+                  <p className="mt-1 truncate text-muted">{item.body}</p>
+                )}
+
+                {expanded && (
+                  <div data-expand className="mt-2 space-y-2">
+                    {item.body ? (
+                      <Markdown text={item.body} className="leading-relaxed text-muted" />
+                    ) : (
+                      <p className="text-muted/70">這則通知沒有內文</p>
+                    )}
+                    {link && (
+                      <a href={link} className="inline-block text-accent transition-colors hover:text-text">
+                        前往相關頁面 →
+                      </a>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 

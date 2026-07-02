@@ -5,6 +5,7 @@ import { useGSAP } from "@gsap/react";
 import { api } from "../lib/api";
 import { fmtDate } from "../lib/date";
 import { EASE, DUR } from "../lib/motion";
+import { Markdown } from "../lib/markdown";
 import type { Notification } from "../../shared/types";
 
 gsap.registerPlugin(useGSAP);
@@ -12,10 +13,16 @@ gsap.registerPlugin(useGSAP);
 type NotificationResponse = { items: Notification[]; unreadCount: number };
 
 // nav 上的通知入口：點開先看最近幾則，要翻舊帳再進完整頁面。
+// 公告類通知不導頁（歷史資料的 linkUrl 指向 /app），內容就地展開
+function externalLink(item: Notification): string | null {
+  return item.type === "announcement" ? null : item.linkUrl;
+}
+
 export function NotificationsMenu() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
@@ -104,35 +111,46 @@ export function NotificationsMenu() {
           ) : (
             <ul className="max-h-80 divide-y divide-border/40 overflow-y-auto py-1">
               {items.map((item) => {
+                const link = externalLink(item);
+                const expanded = expandedId === item.id;
                 const row = (
                   <span className="flex items-start gap-2">
                     {!item.isRead && (
                       <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="未讀" />
                     )}
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm text-text">{item.title}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block text-sm text-text ${expanded ? "" : "truncate"}`}>{item.title}</span>
                       <span className="mt-0.5 block font-mono text-xs text-muted">{fmtDate(item.createdAt)}</span>
                     </span>
                   </span>
                 );
                 return (
                   <li key={item.id}>
-                    {item.linkUrl ? (
+                    {link ? (
                       <a
-                        href={item.linkUrl}
+                        href={link}
                         onClick={() => markRead(item)}
                         className="block px-4 py-2.5 transition-colors hover:bg-surface/60"
                       >
                         {row}
                       </a>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => markRead(item)}
-                        className="block w-full px-4 py-2.5 text-left transition-colors hover:bg-surface/60"
-                      >
-                        {row}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          aria-expanded={expanded}
+                          onClick={() => {
+                            setExpandedId(expanded ? null : item.id);
+                            markRead(item);
+                          }}
+                          className="block w-full px-4 py-2.5 text-left transition-colors hover:bg-surface/60"
+                        >
+                          {row}
+                        </button>
+                        {expanded && item.body && (
+                          <Markdown text={item.body} className="px-4 pb-2.5 pl-8 text-xs leading-relaxed text-muted" />
+                        )}
+                      </>
                     )}
                   </li>
                 );
