@@ -690,7 +690,7 @@ export function AdminPanelPage() {
                   required
                 />
                 <p className="text-xs text-muted">
-                  支援部分 Markdown：**粗體**、*斜體*、`程式碼`、[連結](https://…)、- 條列，空行分段。
+                  支援 Markdown：粗體、斜體、連結、清單、引用等；直接貼網址會自動變連結，單一換行就是換行。
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[12rem_12rem_auto] lg:items-end">
                   <Input
