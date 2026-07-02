@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "type": "module",
-  "description": "追番進行式 — a private, application-gated anime watch-tracker for the 彼岸花 Discord community.",
+  "description": "追番進行式 — a self-hostable, application-gated anime watch-tracker for Discord communities.",
   "scripts": {
     "dev": "wrangler dev",
     "dev:web": "vite",

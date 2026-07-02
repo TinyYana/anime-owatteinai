@@ -6,9 +6,9 @@ AI Agent 在此專案的指導文件。與 CLAUDE.md 內容相同，保持同步
 
 ## 專案概覽
 
-**追番進行式（AnimeOwatteiNai）**：彼岸花 Discord 社群的私人申請制追番工具。
+**追番進行式（AnimeOwatteiNai）**：可自架的私人申請制 Discord 社群追番工具。彼岸花 Discord 社群是第一個實際使用的社群實例。
 
-- 申請制，需要在 Discord 社群內才能加入
+- 申請制，需要在該部署設定的 Discord 社群內才能加入
 - 不代管、不嵌入、不下載任何影片。source_links 只存 URL
 - 部署於 Cloudflare Workers，資料庫 Neon PostgreSQL
 - 生產網址：`https://aon.tinyyana.com`
