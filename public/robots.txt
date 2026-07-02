@@ -4,3 +4,5 @@ Allow: /terms$
 Disallow: /app/
 Disallow: /api/
 Disallow: /apply/
+
+Sitemap: https://aon.tinyyana.com/sitemap.xml

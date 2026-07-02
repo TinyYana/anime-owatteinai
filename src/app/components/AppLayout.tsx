@@ -126,7 +126,7 @@ export function AppLayout() {
       </main>
 
       <footer className="border-t border-border/50 py-5 flex items-center justify-between gap-4 flex-wrap">
-        <p className="section-label">追番永遠追不完，所以讓系統記得你看到哪</p>
+        <p className="section-label">番還沒看完，慢慢來</p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <a href="/terms" className="section-label transition-colors hover:text-text">服務條款</a>
           <FooterIconLink href="https://github.com/TinyYana/anime-owatteinai" label="GitHub">

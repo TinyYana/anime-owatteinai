@@ -96,8 +96,8 @@ export function LandingPage() {
       <p data-hero className="mt-2 font-mono text-xs tracking-[0.25em] text-muted">AnimeOwatteiNai</p>
 
       <p data-hero className="mt-7 max-w-sm text-base leading-relaxed text-muted">
-        追番永遠追不完，<br className="sm:hidden" />
-        所以讓系統記得你看到哪。
+        「上次看到第幾集來著？」<br className="sm:hidden" />
+        這種事交給它記就好。
       </p>
 
       {/* Signature progress motif — a glimpse of what the app is for */}
