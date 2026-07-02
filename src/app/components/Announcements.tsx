@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { Markdown } from "../lib/markdown";
 import type { AnnouncementLevel, SiteAnnouncement } from "../../shared/types";
 
 const levelText: Record<AnnouncementLevel, string> = {
@@ -32,7 +33,7 @@ export function AnnouncementStrip({ limit = 3 }: Readonly<{ limit?: number }>) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-medium text-text">{item.title}</p>
-            <p className="mt-0.5 text-muted">{item.content}</p>
+            <Markdown text={item.content} className="mt-0.5 text-muted" />
           </div>
         </div>
       ))}
