@@ -11,6 +11,7 @@ export type AuditAction =
   | "anime_edit.reject"
   | "user.role_change"
   | "user.guild_revoked"
+  | "user.stale_cleanup"
   | "role.permissions_change"
   | "anime.import"
   | "anime.update"

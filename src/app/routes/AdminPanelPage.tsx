@@ -24,6 +24,7 @@ type AdminUser = {
   lastLoginAt: string | null;
   createdAt: string;
   animeCount: number;
+  hasApplication: boolean;
 };
 type Stats = {
   users: { total: number; members: number; admins: number; moderators: number; pending: number; banned: number };
@@ -145,6 +146,8 @@ function describeAudit(row: AuditLog) {
       return { tone: "accent" as const, title: `${actor} 移除別名`, detail: metaText(meta, "removedAlias") ?? target };
     case "user.guild_revoked":
       return { tone: "accent" as const, title: "系統移除離開 Discord 的成員權限", detail: target };
+    case "user.stale_cleanup":
+      return { tone: "muted" as const, title: "系統清除未送出申請的閒置帳號", detail: metaText(meta, "discordUsername") ?? target };
     case "user.login":
       return { tone: "muted" as const, title: `${actor} 登入`, detail: null };
     case "user.logout":
@@ -371,7 +374,7 @@ export function AdminPanelPage() {
       <header data-reveal className="flex items-baseline justify-between">
         <div>
           <p className="section-label">系統管理</p>
-          <h1 className="mt-1 text-2xl font-semibold text-text">Admin Panel</h1>
+          <h1 className="mt-1 text-2xl font-semibold text-text">管理後台</h1>
         </div>
         <Link to="/app/admin/applications">
           <Button variant="ghost">
@@ -415,19 +418,6 @@ export function AdminPanelPage() {
               </Panel>
 
               <Panel className="space-y-3">
-                <p className="section-label">快速操作</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="ghost" onClick={() => { setTab("users"); }}>權限管理 →</Button>
-                  <Button variant="ghost" onClick={() => { setTab("roles"); }}>身份權限 →</Button>
-                  <Button variant="ghost" onClick={() => { setTab("edits"); }}>審核動畫編輯 →</Button>
-                  <Button variant="ghost" onClick={() => { setTab("activity"); }}>觀看紀錄 →</Button>
-                  <a href="/api/health" target="_blank" rel="noreferrer">
-                    <Button variant="ghost">API Health ↗</Button>
-                  </a>
-                </div>
-              </Panel>
-
-              <Panel className="space-y-3">
                 <p className="section-label">資料維護</p>
                 <p className="text-sm text-muted">將 DB 中舊的 AniList 封面縮圖（medium 尺寸，約 115px）升級為 large（約 230px）。執行一次即可，重複執行無害。</p>
                 <div className="flex flex-wrap items-center gap-3">
@@ -453,12 +443,6 @@ export function AdminPanelPage() {
                 </div>
               </Panel>
 
-              <Panel className="space-y-2">
-                <p className="section-label">當前登入身分</p>
-                <p className="text-sm text-text">{me?.discordGlobalName ?? me?.discordUsername}</p>
-                <p className="font-mono text-xs text-muted">{me?.id}</p>
-                <Badge tone={ROLE_TONE[me?.role as UserRole ?? "member"]}>{ROLE_LABEL[me?.role as UserRole ?? "member"]}</Badge>
-              </Panel>
             </>
           )}
         </div>
@@ -466,7 +450,9 @@ export function AdminPanelPage() {
 
       {tab === "users" && (
         <div data-reveal className="space-y-3">
-          <p className="text-sm text-muted">這裡管理使用者身份與封鎖狀態。</p>
+          <p className="text-sm text-muted">
+            這裡管理使用者身份與封鎖狀態。登入後 7 天內沒送出申請、也沒有任何資料的帳號會自動清除。
+          </p>
           {users === null ? <Loading /> : users.length === 0 ? (
             <p className="text-muted">沒有使用者資料。</p>
           ) : (
@@ -488,7 +474,12 @@ export function AdminPanelPage() {
                         <div className="font-medium text-text">{u.discordGlobalName ?? u.discordUsername}</div>
                         <div className="font-mono text-xs text-muted">@{u.discordUsername}</div>
                       </td>
-                      <td className="py-2.5 pr-4"><Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge></td>
+                      <td className="py-2.5 pr-4">
+                        <Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge>
+                        {u.role === "pending" && !u.hasApplication && (
+                          <div className="mt-1 text-xs text-muted">未送出申請</div>
+                        )}
+                      </td>
                       <td className="py-2.5 pr-4 font-mono text-xs text-muted">{u.animeCount}</td>
                       <td className="py-2.5 pr-4 font-mono text-xs text-muted">{fmtDate(u.createdAt)}</td>
                       <td className="py-2.5">
@@ -694,10 +685,13 @@ export function AdminPanelPage() {
                 <Textarea
                   value={announcementForm.content}
                   onChange={(e) => setAnnouncementForm((f) => ({ ...f, content: e.target.value }))}
-                  placeholder="公告內容（純文字）"
+                  placeholder="公告內容"
                   maxLength={2000}
                   required
                 />
+                <p className="text-xs text-muted">
+                  支援部分 Markdown：**粗體**、*斜體*、`程式碼`、[連結](https://…)、- 條列，空行分段。
+                </p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[12rem_12rem_auto] lg:items-end">
                   <Input
                     type="datetime-local"
@@ -748,8 +742,10 @@ export function AdminPanelPage() {
                           </td>
                           <td className="py-2.5 pr-4">{ANNOUNCEMENT_LEVEL_LABEL[item.level]}</td>
                           <td className="py-2.5 pr-4">{ANNOUNCEMENT_AUDIENCE_LABEL[item.audience]}</td>
-                          <td className="py-2.5 pr-4 font-mono text-xs text-muted">
-                            {item.isActive ? "active" : "inactive"}
+                          <td className="py-2.5 pr-4 text-xs">
+                            {item.isActive
+                              ? <span className="text-signal">顯示中</span>
+                              : <span className="text-muted">已停用</span>}
                           </td>
                           <td className="py-2.5">
                             <div className="flex gap-2">
@@ -859,19 +855,19 @@ export function AdminPanelPage() {
           <Panel className="space-y-3">
             <p className="section-label">個人化通知</p>
             <p className="text-sm text-muted">
-              Phase 4 主線改成個人化通知：用 Cron + Discord REST API 送出每日 DM，內容依每個人的追番清單、優先度與最近觀看紀錄整理。
-              社群頻道摘要只使用成員主動公開的追番資料，避免把私人進度丟到公開頻道。
+              開啟每日私訊的成員，會收到依自己的追番清單、優先度與最近觀看紀錄整理的簡報。
+              社群頻道摘要只使用成員主動公開的追番資料，不會把私人進度丟到公開頻道。
             </p>
             <p className="text-xs text-muted">
-              使用者可在設定頁自行開啟每日 DM 並寄送測試訊息；未 opt-in 的成員不會收到自動通知。
+              成員在設定頁自行開啟每日私訊並寄送測試訊息；沒開啟的人不會收到任何自動通知。
             </p>
           </Panel>
 
           <Panel className="space-y-3">
-            <p className="section-label">可選互動入口</p>
+            <p className="section-label">Slash 指令</p>
             <p className="text-sm text-muted">
-              將 <span className="font-mono">/anime</span>（today / watching / share）指令註冊到 Discord。
-              這是 stateless HTTP Interactions，不需要 Gateway 長連線；但它不再是 Phase 4 主線，只當作低優先查詢入口保留。
+              將 <span className="font-mono">/anime</span>（today / watching / share）指令註冊到 Discord，
+              讓成員不開網站也能查自己的追番進度。用 HTTP Interactions 回應，不需要常駐 bot。
             </p>
             <Button
               variant="ghost"

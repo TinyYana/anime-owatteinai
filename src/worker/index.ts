@@ -14,6 +14,7 @@ import { announcementRoutes } from "./routes/announcements";
 import { animeNoteRoutes } from "./routes/animeNotes";
 import { communityRoutes } from "./routes/community";
 import { runGuildAudit } from "./lib/guildAudit";
+import { cleanupUnappliedUsers } from "./lib/cleanup";
 import { runDailySummary } from "./lib/dailySummary";
 import { runPersonalDailyNotifications } from "./lib/personalNotifications";
 import { discordRoutes } from "./routes/discord";
@@ -70,6 +71,7 @@ export default {
     if (controller.cron === "0 9 * * *") {
       ctx.waitUntil(runDailySummary(env));
       ctx.waitUntil(runPersonalDailyNotifications(env));
+      ctx.waitUntil(cleanupUnappliedUsers(env));
     }
   },
 };

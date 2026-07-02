@@ -113,6 +113,7 @@ adminPanelRoutes.get("/users", async (c) => {
       lastLoginAt: users.lastLoginAt,
       createdAt: users.createdAt,
       animeCount: count(userAnime.id),
+      hasApplication: sql<boolean>`exists (select 1 from ${accessApplications} where ${accessApplications.userId} = ${users.id})`,
     })
     .from(users)
     .leftJoin(userAnime, eq(userAnime.userId, users.id))
