@@ -51,8 +51,8 @@ export function ApplyPage() {
   return (
     <div ref={scope} className="relative z-10 mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-6 px-6 py-12">
       <header data-reveal>
-        <p className="section-label">申請加入追番中樞</p>
-        <h1 className="mt-1 text-2xl font-semibold text-text">尚未確認的帳號</h1>
+        <p className="section-label">申請加入追番進行式</p>
+        <h1 className="mt-1 text-2xl font-semibold text-text">還差一步就能進來</h1>
       </header>
 
       <Panel data-reveal className="space-y-3">

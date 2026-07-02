@@ -100,7 +100,7 @@ export function SettingsPage() {
             <div>
               <h2 className="font-medium text-text">個人化通知</h2>
               <p className="mt-1 text-sm text-muted">
-                不需要額外架 Discord bot。系統會用 Cloudflare Cron 定時醒來，透過 Discord REST API 把你的今日追番簡報私訊給你。
+                每天把你的追番簡報用 Discord 私訊寄給你：接著看哪部、最近看了什麼，一則訊息講完。
               </p>
             </div>
 
@@ -118,7 +118,7 @@ export function SettingsPage() {
                     />
                     <span>
                       <span className="block text-text">每日私訊追番簡報</span>
-                      <span className="text-xs text-muted">每天 09:00 UTC 依你的追番清單整理「接著看」與最近觀看紀錄</span>
+                      <span className="text-xs text-muted">每天 17:00（台灣時間）依你的追番清單整理「接著看」與最近觀看紀錄</span>
                     </span>
                   </label>
 
@@ -171,9 +171,21 @@ export function SettingsPage() {
             <div className="space-y-1.5 text-sm text-muted">
               <p className="font-medium text-text">安裝步驟</p>
               <ol className="list-inside list-decimal space-y-1.5 pl-0.5">
+                <li>
+                  到{" "}
+                  <a
+                    href="https://github.com/TinyYana/anime-owatteinai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-text underline underline-offset-2 transition-colors hover:text-accent"
+                  >
+                    GitHub 專案頁
+                  </a>
+                  {" "}點「Code → Download ZIP」下載並解壓縮
+                </li>
                 <li>在 Chrome / Edge 開啟 <span className="kbd-label">chrome://extensions</span></li>
                 <li>開啟右上角「開發人員模式」</li>
-                <li>點「載入未封裝項目」，選擇專案內的 <span className="kbd-label">extension/</span> 目錄</li>
+                <li>點「載入未封裝項目」，選擇解壓縮後的 <span className="kbd-label">extension/</span> 目錄</li>
                 <li>插件圖示出現在工具列後，點選並開啟設定</li>
                 <li>將 API 網址填入 <span className="kbd-label">https://aon.tinyyana.com</span>，儲存後測試連線</li>
               </ol>

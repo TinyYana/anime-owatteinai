@@ -42,7 +42,7 @@ export function AdminApplicationsPage() {
   return (
     <div ref={scope} className="space-y-6">
       <header data-reveal>
-        <p className="section-label">待審核訊號 · {apps.length}</p>
+        <p className="section-label">待審核申請 · {apps.length}</p>
         <h1 className="mt-1 text-2xl font-semibold text-text">申請審核</h1>
       </header>
 

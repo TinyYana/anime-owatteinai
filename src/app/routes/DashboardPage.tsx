@@ -158,7 +158,7 @@ function CommunitySignal({ summary }: { summary: CommunitySummary | null }) {
   if (items.length === 0) return null;
   return (
     <section>
-      <p className="section-label mb-2">社群訊號</p>
+      <p className="section-label mb-2">大家在看</p>
       <ul className="divide-y divide-border/40 border-y border-border/40">
         {items.map((item) => (
           <li key={item.animeId} className="py-2.5 text-sm">
