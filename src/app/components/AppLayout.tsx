@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { hasPermission, useAuth } from "../lib/auth";
 import { ThemeToggle } from "./ThemeToggle";
+import { NotificationsMenu } from "./NotificationsMenu";
 import { api } from "../lib/api";
 
 const navItems = [
@@ -69,17 +70,9 @@ function FooterIconLink({ href, label, children }: Readonly<{ href: string; labe
 
 export function AppLayout() {
   const { me } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
   const [adminTasks, setAdminTasks] = useState<AdminTaskCounts | null>(null);
   const canReviewApplications = hasPermission(me, "applications.review");
   const canOpenAdmin = hasPermission(me, "admin.access");
-
-  useEffect(() => {
-    api
-      .get<{ unreadCount: number }>("/api/my/notifications?limit=1")
-      .then((data) => setUnreadCount(data.unreadCount))
-      .catch(() => setUnreadCount(0));
-  }, []);
 
   useEffect(() => {
     if (!canReviewApplications && !canOpenAdmin) {
@@ -109,9 +102,7 @@ export function AppLayout() {
               {item.label}
             </NavLink>
           ))}
-          <NavLink to="/app/notifications" className={({ isActive }) => navLink(isActive)}>
-            通知<CountPill count={unreadCount} />
-          </NavLink>
+          <NotificationsMenu />
           {(canReviewApplications || canOpenAdmin) && (
             <>
               {canReviewApplications && (
