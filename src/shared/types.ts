@@ -79,6 +79,17 @@ export const ROLE_PERMISSION_LABELS: Record<RolePermission, string> = {
   "audit.view": "查看審計紀錄",
 };
 
+// 給身份權限編輯器用：每項權限實際解鎖哪些功能
+export const ROLE_PERMISSION_DESCRIPTIONS: Record<RolePermission, string> = {
+  "app.access": "通過審核後的基本門檻。追番清單、觀看紀錄、新增觀看入口、社群動態、作品短評都在這道門之後",
+  "admin.access": "能打開「管理後台」頁面（總覽、使用者、觀看紀錄、公告、測試、Discord 等分頁）。只是入口，實際操作還要看下面的個別權限",
+  "applications.review": "導覽列出現「審核」，可以通過或拒絕加入申請",
+  "users.manage": "在後台「使用者」分頁調整別人的身份：升降身份、封鎖、解封",
+  "roles.manage": "編輯這個「身份權限」設定本身——決定每個身份能做什麼",
+  "anime.manage": "直接編輯動畫資料、審核成員的動畫編輯提案、刪除觀看入口與別名、合併重複作品",
+  "audit.view": "查看後台「審計」分頁的管理操作紀錄",
+};
+
 export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, readonly RolePermission[]> = {
   owner: ROLE_PERMISSIONS,
   admin: ["app.access", "admin.access", "applications.review", "users.manage", "roles.manage", "anime.manage", "audit.view"],

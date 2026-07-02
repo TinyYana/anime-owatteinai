@@ -5,7 +5,7 @@ import { fmtDate, fmtDateTime } from "../lib/date";
 import { Panel, Button, Badge, Loading, Input, Select, Textarea } from "../components/ui";
 import { useReveal } from "../lib/motion";
 import { hasPermission, useAuth } from "../lib/auth";
-import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_LEVELS, ROLE_PERMISSION_LABELS, ROLE_PERMISSIONS, USER_ROLES } from "../../shared/types";
+import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_LEVELS, ROLE_PERMISSION_DESCRIPTIONS, ROLE_PERMISSION_LABELS, ROLE_PERMISSIONS, USER_ROLES } from "../../shared/types";
 import type { AnnouncementAudience, AnnouncementLevel, AnimeEditRequest, RolePermission, RolePermissionConfig, SiteAnnouncement, UserRole } from "../../shared/types";
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -514,7 +514,9 @@ export function AdminPanelPage() {
 
       {tab === "roles" && (
         <div data-reveal className="space-y-3">
-          <p className="text-sm text-muted">每個身份可以使用哪些功能。Owner 永遠擁有全部權限。</p>
+          <p className="text-sm text-muted">
+            每個身份可以使用哪些功能，勾選即生效。Owner 永遠擁有全部權限；公告管理不在此設定內，固定只有管理員與擁有者可用。
+          </p>
           {roleConfigs === null ? <Loading /> : (
             <RolePermissionsEditor
               configs={roleConfigs}
@@ -963,15 +965,20 @@ function RolePermissionsEditor({
 
             <div className="grid gap-2 sm:grid-cols-2">
               {ROLE_PERMISSIONS.map((permission) => (
-                <label key={permission} className="flex items-center gap-2 rounded-lg border border-border/40 px-3 py-2 text-sm text-text">
+                <label key={permission} className="flex items-start gap-2.5 rounded-lg border border-border/40 px-3 py-2 text-sm">
                   <input
                     type="checkbox"
-                    className="accent-[var(--color-accent)]"
+                    className="mt-1 accent-[var(--color-accent)]"
                     checked={role === "owner" || enabled.has(permission)}
                     disabled={locked || busyId === `role:${role}`}
                     onChange={(event) => onToggle(role, permission, event.target.checked)}
                   />
-                  <span>{ROLE_PERMISSION_LABELS[permission]}</span>
+                  <span className="min-w-0">
+                    <span className="block text-text">{ROLE_PERMISSION_LABELS[permission]}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted">
+                      {ROLE_PERMISSION_DESCRIPTIONS[permission]}
+                    </span>
+                  </span>
                 </label>
               ))}
             </div>
